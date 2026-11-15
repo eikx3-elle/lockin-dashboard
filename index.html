@@ -913,7 +913,7 @@ const dayFood=k=>S.food.filter(f=>f.day===k);
 const sumP=a=>Math.round(a.filter(f=>!f.planned).reduce((s,f)=>s+(+f.protein||0),0));
 const sumAllP=a=>Math.round(a.reduce((s,f)=>s+(+f.protein||0),0));
 const sumAllK=a=>Math.round(a.reduce((s,f)=>s+(+f.kcal||0),0));
-let foodMode='ate',foodMeal=null;
+let foodMode='ate',foodMeal=null,foodCheat=false;
 const MEALS=[['breakfast','Breakfast'],['lunch','Lunch'],['dinner','Dinner'],['snacks','Snacks']];
 const mealOf=f=>MEALS.some(m=>m[0]===f.meal)?f.meal:'snacks';
 const autoMeal=k=>{if(k!==todayKey())return 'breakfast';const H=new Date().getHours();return H<11?'breakfast':H<16?'lunch':H<21?'dinner':'snacks'};
@@ -950,7 +950,7 @@ function renderBody(){
     const pts=recentW.map((w,i)=>`${(i/(recentW.length-1)*100).toFixed(2)},${(46-((w.kg-mn)/rg)*40).toFixed(2)}`).join(' ');
     spark=`<svg class="spark" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#9a9a9a" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg><div class="row" style="justify-content:space-between;font:11px var(--mono);color:var(--tx4)"><span>${fmtShort(recentW[0].day)}</span><span>${mn}–${mx} kg</span><span>${fmtShort(recentW[recentW.length-1].day)}</span></div>`}
   const strip=[6,5,4,3,2,1,0].map(i=>{const dd=addDays(new Date(),-i),kk=dayKey(dd),f=dayFood(kk),p=sumP(f),kc=sumK(f),tr=S.workouts.some(w=>w.day===kk);
-    return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${i===0?'Today':dow(dd)}</span><span class="dot ${p>=tg.protein&&p>0?'on':''}" title="Protein goal"></span></div><div class="pv">${f.length?p+'<span class="muted" style="font-size:11px"> g</span>':'<span class="muted">–</span>'}</div><div class="kv">${f.length?kc+' kcal':'&nbsp;'}</div><div class="kv">${tr?'trained':'&nbsp;'}</div></div>`}).join('');
+    return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${i===0?'Today':dow(dd)}</span><span class="dot ${p>=tg.protein&&p>0?'on':''}" title="Protein goal"></span></div><div class="pv">${f.length?p+'<span class="muted" style="font-size:11px"> g</span>':'<span class="muted">–</span>'}</div><div class="kv">${f.length?kc+' kcal':'&nbsp;'}</div><div class="kv">${[tr?'trained':'',f.some(x=>x.cheat&&!x.planned)?'cheat':''].filter(Boolean).join(' · ')||'&nbsp;'}</div></div>`}).join('');
   const label=k===tk?'Today':k===dayKey(addDays(new Date(),-1))?'Yesterday':k===dayKey(addDays(new Date(),1))?'Tomorrow':fmtDay(d);
   const maxDay=dayKey(addDays(new Date(),7));
   return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${label} <span style="color:var(--tx4);text-transform:none;letter-spacing:0">· ${BF.handle?'<span data-act="body-open" title="Click to switch file" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--tx4)">'+esc(BF.handle.name)+'</span> · <span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${fmtDay(d)}</h1></div>
@@ -962,14 +962,23 @@ function renderBody(){
   <div class="bgrid">
     <div class="card"><h2><span>${isFut?'Food plan':'Food'}</span>${isFut?'<span class="muted" style="font-size:12px">Tick them off on the day</span>':`<span class="modeseg"><span class="${fmode==='ate'?'on':''}" data-act="food-mode" data-m="ate">Ate</span><span class="${fmode==='plan'?'on':''}" data-act="food-mode" data-m="plan">Plan</span></span>`}</h2>
       <div class="qadd"><div class="sugwrap"><input data-k="food-name" data-hold data-enter="food-add" autocomplete="off" placeholder="${fmode==='plan'?'What will you eat? Type to search past food':'What did you eat? Type to search past food'}"><div class="sug" id="fsug" style="display:none"></div></div><input data-k="food-p" data-hold data-enter="food-add" inputmode="decimal" placeholder="Protein g"><input data-k="food-k" data-hold data-enter="food-add" inputmode="decimal" placeholder="kcal"><button class="btn sm" data-act="food-add">${fmode==='plan'?'Plan':'Add'}</button></div>
-      <div class="row" style="margin:-2px 0 14px;gap:8px"><span class="muted" style="font-size:12px">Add to</span><span class="modeseg">${MEALS.map(([mk,ml])=>`<span class="${cm===mk?'on':''}" data-act="food-meal" data-m="${mk}">${ml}</span>`).join('')}</span></div>
+      <div class="row" style="margin:-2px 0 14px;gap:8px"><span class="muted" style="font-size:12px">Add to</span><span class="modeseg">${MEALS.map(([mk,ml])=>`<span class="${cm===mk?'on':''}" data-act="food-meal" data-m="${mk}">${ml}</span>`).join('')}</span><span class="modeseg" style="margin-left:auto"><span class="${foodCheat?'on':''}" data-act="food-cheat-toggle" title="Mark what you add as a cheat meal">Cheat meal</span></span></div>
 
       ${!isFut&&foods.filter(f=>f.planned).length>1?`<div style="text-align:right;margin:-4px 0 6px"><span class="eat" data-act="food-eat-all">✓ Ate all planned</span></div>`:''}
       ${MEALS.map(([mk,ml])=>{const fs=foods.filter(f=>mealOf(f)===mk);return `<div class="fsec" data-meal="${mk}"><div class="fsec-h"><span>${ml}</span><span class="row" style="gap:10px">${fs.length?`<span class="mono muted" style="font-size:11.5px;text-transform:none;letter-spacing:0">${sumAllP(fs)}g · ${sumAllK(fs)} kcal</span>`:''}<span class="ghost" style="padding:0 4px" data-act="food-meal" data-m="${mk}" title="Add to ${ml.toLowerCase()}">+</span></span></div>
-        ${fs.map(f=>`<div class="item fitem ${f.planned?'planned':''}" data-fid="${f.id}"><span class="grip" title="Drag to reorder or move to another meal">⋮⋮</span><span style="flex:1;cursor:pointer" data-act="food-edit" data-id="${f.id}" title="Click to edit">${esc(f.name)}${f.planned?'<span class="pl-badge">planned</span>':''}</span>${f.planned&&!isFut?`<span class="eat" data-act="food-eat" data-id="${f.id}" title="Mark as eaten">✓ Ate it</span>`:''}<span class="tag mono" style="cursor:pointer" data-act="food-edit" data-id="${f.id}">${f.protein}g · ${f.kcal} kcal</span><span class="x" data-act="food-del" data-id="${f.id}">×</span></div>`).join('')||'<div class="fempty">—</div>'}</div>`}).join('')}
+        ${fs.map(f=>`<div class="item fitem ${f.planned?'planned':''}" data-fid="${f.id}"><span class="grip" title="Drag to reorder or move to another meal">⋮⋮</span><span style="flex:1;cursor:pointer" data-act="food-edit" data-id="${f.id}" title="Click to edit">${esc(f.name)}${(f.cheat?'<span class="pl-badge">cheat</span>':'')+(f.planned?'<span class="pl-badge">planned</span>':'')}</span>${f.planned&&!isFut?`<span class="eat" data-act="food-eat" data-id="${f.id}" title="Mark as eaten">✓ Ate it</span>`:''}<span class="tag mono" style="cursor:pointer" data-act="food-edit" data-id="${f.id}">${f.protein}g · ${f.kcal} kcal</span><span class="x" data-act="food-del" data-id="${f.id}">×</span></div>`).join('')||'<div class="fempty">—</div>'}</div>`}).join('')}
       ${foods.length?'':`<div class="empty" style="margin-top:6px">${isFut?'Nothing planned yet. Add meals here or tap a usual meal, or tell Claude what you plan to eat.':`Nothing logged${k===tk?' yet today':''}. Add it here, or just tell Claude what you ate.`}</div>`}
     </div>
     <div class="bcol">
+      ${(()=>{const ch=S.food.filter(x=>x.cheat).sort((a,b)=>(b.day||'').localeCompare(a.day||'')||(b.createdAt||0)-(a.createdAt||0));
+        const eaten=ch.filter(x=>!x.planned&&x.day<=tk),mk=tk.slice(0,7),thisMonth=eaten.filter(x=>x.day.startsWith(mk)).length;
+        const d30=dayKey(addDays(new Date(),-29)),last30=new Set(eaten.filter(x=>x.day>=d30).map(x=>x.day)).size;
+        const lastDay=eaten[0]?eaten[0].day:null,since=lastDay?Math.round((fromKey(tk)-fromKey(lastDay))/864e5):null;
+        return `<div class="card"><h2><span>Cheat meals</span>${eaten.length?`<span class="muted mono" style="font-size:11.5px">${thisMonth} this month · ${last30} day${last30===1?'':'s'} in last 30</span>`:''}</h2>
+        <div class="qadd" style="grid-template-columns:1fr 1fr 1.4fr auto"><input style="grid-column:1/-1" data-k="cm-name" data-hold data-enter="cheat-add" placeholder="What was it? e.g. pizza night" autocomplete="off"><input data-k="cm-p" data-hold data-enter="cheat-add" inputmode="decimal" placeholder="Prot g"><input data-k="cm-k" data-hold data-enter="cheat-add" inputmode="decimal" placeholder="kcal"><input type="date" data-k="cm-day" data-hold value="${k}"><button class="btn sm" data-act="cheat-add">Add</button></div>
+        ${since!=null?`<div class="muted" style="font-size:12px;margin:-2px 0 8px">Last one ${since===0?'today':since===1?'yesterday':since+' days ago'}</div>`:''}
+        ${ch.slice(0,8).map(x=>`<div class="item ev" data-act="food-edit" data-id="${x.id}"><span class="t" style="min-width:58px">${fmtShort(x.day)}</span><span style="flex:1">${esc(x.name)}${x.planned?'<span class="pl-badge">planned</span>':''}</span><span class="tag mono">${x.protein}g · ${x.kcal} kcal</span></div>`).join('')||'<div class="empty">None logged. They also count in that day\u2019s totals.</div>'}
+        </div>`})()}
       <div class="card"><h2>Training</h2>
         <div class="qadd2"><input data-k="wo-text" data-hold data-enter="wo-add" placeholder="e.g. Push day, 5k run, abs"><input data-k="wo-min" data-hold data-enter="wo-add" inputmode="numeric" placeholder="Min"><button class="btn sm" data-act="wo-add">Add</button></div>
         ${recentWo.length?`<div class="chips2">${recentWo.map(t=>`<span class="cbtn" data-act="wo-quick" data-text="${esc(t)}">${esc(t)}</span>`).join('')}</div>`:''}
@@ -993,7 +1002,7 @@ function bodyAct(a,el){
   if(a==='food-add'){const n=q('food-name'),p=q('food-p'),kc=q('food-k');const name=n.value.trim();let pv=num(p.value),kv=num(kc.value);
     if(name&&!p.value.trim()&&!kc.value.trim()){const hm=foodHistory().find(x=>x.name.toLowerCase()===name.toLowerCase());if(hm){pv=hm.protein;kv=hm.kcal}}hideSug();
     if(!name&&!pv&&!kv)return;n.value='';p.value='';kc.value='';
-    store.put('food',uid(),{day:k,name:name||'Food',protein:pv,kcal:Math.round(kv),planned:k>todayKey()||foodMode==='plan',meal:curMeal(k),createdAt:Date.now()});const nn=q('food-name');noSug=true;nn&&nn.focus();noSug=false;hideSug();}
+    store.put('food',uid(),{day:k,name:name||'Food',protein:pv,kcal:Math.round(kv),planned:k>todayKey()||foodMode==='plan',meal:curMeal(k),...(foodCheat?{cheat:true}:{}),createdAt:Date.now()});foodCheat=false;const nn=q('food-name');noSug=true;nn&&nn.focus();noSug=false;hideSug();}
   else if(a==='meal-add'){const m=S.meals.find(x=>x.id===el.dataset.id);if(m){store.put('food',uid(),{day:k,name:m.name,protein:m.protein,kcal:m.kcal,planned:k>todayKey()||foodMode==='plan',meal:curMeal(k),createdAt:Date.now()});toast(`Added ${m.name}`)}}
   else if(a==='meal-del'){store.del('meals',el.dataset.id)}
   else if(a==='meal-save'){const f=S.food.find(x=>x.id===el.dataset.id);if(f){store.put('meals',uid(),{name:f.name,protein:f.protein,kcal:f.kcal,createdAt:Date.now()});toast('Saved to usual meals')}}
@@ -1012,9 +1021,10 @@ function bodyAct(a,el){
     modal(`<div class="eyebrow">Edit food</div><input class="big" id="fe-n" value="${esc(f.name)}" autofocus>
       <div class="row"><label>Protein (g)<input id="fe-p" inputmode="decimal" value="${f.protein}"></label><label>Calories (kcal)<input id="fe-k" inputmode="numeric" value="${f.kcal}"></label></div>
       <div class="row"><label>Meal<select id="fe-m" style="font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px">${MEALS.map(([mk,ml])=>`<option value="${mk}" ${mealOf(f)===mk?'selected':''}>${ml}</option>`).join('')}</select></label><label>Day<input type="date" id="fe-d" value="${f.day}"></label><label>Status<select id="fe-s" style="font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px"><option value="ate" ${!f.planned?'selected':''}>Ate</option><option value="plan" ${f.planned?'selected':''}>Planned</option></select></label></div>
+      <label style="flex-direction:row;align-items:center;gap:10px;color:var(--tx2);font-size:13px;cursor:pointer"><input type="checkbox" id="fe-c" ${f.cheat?'checked':''} style="width:auto;accent-color:#ededed"> Cheat meal</label>
       <div class="row-end"><button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
       const save=()=>{const name=$('#fe-n',d).value.trim()||f.name,day=$('#fe-d',d).value||f.day;close();
-        store.patch('food',f.id,{name,protein:num($('#fe-p',d).value),kcal:Math.round(num($('#fe-k',d).value)),meal:$('#fe-m',d).value,day,planned:$('#fe-s',d).value==='plan'})};
+        store.patch('food',f.id,{name,protein:num($('#fe-p',d).value),kcal:Math.round(num($('#fe-k',d).value)),meal:$('#fe-m',d).value,day,planned:$('#fe-s',d).value==='plan',cheat:$('#fe-c',d).checked})};
       d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;
       d.querySelector('[data-a=del]').onclick=()=>{close();store.del('food',f.id)};
       d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}));
@@ -1034,6 +1044,12 @@ function bodyAct(a,el){
       d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=del]').onclick=()=>{close();store.del('weights',w.id)};
       d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}));
     })}
+  else if(a==='food-cheat-toggle'){foodCheat=!foodCheat;render()}
+  else if(a==='cheat-add'){const n=q('cm-name'),p=q('cm-p'),kc=q('cm-k'),dd=q('cm-day');const name=n.value.trim();let pv=num(p.value),kv=num(kc.value);
+    if(name&&!p.value.trim()&&!kc.value.trim()){const hm=foodHistory().find(x=>x.name.toLowerCase()===name.toLowerCase());if(hm){pv=hm.protein;kv=hm.kcal}}
+    if(!name&&!pv&&!kv){n.focus();return}const day=dd.value||k;n.value='';p.value='';kc.value='';
+    store.put('food',uid(),{day,name:name||'Cheat meal',protein:pv,kcal:Math.round(kv),cheat:true,planned:day>todayKey(),meal:day===k?curMeal(k):'dinner',createdAt:Date.now()});
+    toast(`Logged for ${day===todayKey()?'today':fmtShort(day)}`)}
   else if(a==='food-mode'){foodMode=el.dataset.m==='plan'?'plan':'ate';render()}
   else if(a==='food-eat'){store.patch('food',el.dataset.id,{planned:false,createdAt:Date.now()})}
   else if(a==='food-eat-all'){dayFood(k).filter(f=>f.planned).forEach(f=>store.patch('food',f.id,{planned:false}))}
@@ -1044,7 +1060,7 @@ function bodyAct(a,el){
       el2.querySelector('[data-a=c]').onclick=close;
       el2.querySelector('[data-a=s]').onclick=()=>{const p=Math.round(num($('#g-p',el2).value)),kc=Math.round(num($('#g-k',el2).value));if(p>0&&kc>0){store.bodySettings({targets:{protein:p,kcal:kc}});close()}}})}
 }
-const BODY_ACTS=['food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
+const BODY_ACTS=['food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
 /* plan */
 const fmtM=m=>pad(Math.floor(m/60)%24)+':'+pad(m%60);
 const planText=k=>((S.plans.find(p=>p.id===k)||{}).text)||'';
