@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LOCK IN</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0a0a0a">
@@ -377,6 +377,93 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .mdl{display:flex;justify-content:space-between;font:10.5px var(--mono);color:var(--tx4);margin-top:6px}
 .mamt{font:13px var(--mono);white-space:nowrap}
 @media (max-width:980px){#app{grid-template-columns:168px 1fr}main{padding:30px 24px 80px}.mstats,.stats{grid-template-columns:1fr 1fr}.fgrid,.bgrid,.mgrid,.pgrid,.plan,.tgrid{grid-template-columns:1fr}.lists{grid-template-columns:180px 1fr}.week{overflow-x:auto}.hab{grid-template-columns:18px 1fr}.hab .hcells,.hab .hhist{grid-column:2}}
+/* ---------- phone ---------- */
+.ns,.mhead{display:none}
+@media (hover:none){
+  .x,.star,.due:not(.has),.wadd,.sug .si .sx,.item .x{opacity:1}
+  .grip{display:none!important}
+  .hab{grid-template-columns:minmax(150px,1fr) auto auto;padding-left:18px}
+  input,textarea,select{font-size:16px!important}
+}
+@media (max-width:700px){
+  html,body{font-size:14.5px}
+  #app{display:block;height:auto;min-height:100vh}
+  main{padding:calc(10px + env(safe-area-inset-top)) 14px calc(84px + env(safe-area-inset-bottom));overflow:visible}
+  #side{position:fixed;left:0;right:0;bottom:0;z-index:40;flex-direction:row;padding:6px 4px calc(6px + env(safe-area-inset-bottom));gap:0;border-right:0;border-top:1px solid var(--line);background:rgba(10,10,10,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  #side .brand,#side .side-foot,#side .navsep,#side .mini{display:none}
+  nav{flex-direction:row;flex:1;gap:0}
+  nav a{flex:1;flex-direction:column;justify-content:center;padding:9px 2px;border-radius:10px;font-size:11.5px;text-align:center}
+  nav a.on{background:var(--s3)}
+  .nl{display:none}.ns{display:inline}
+  .mhead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 2px 14px}
+  .mhead .brand{font-size:11px}
+  .msync{font-size:11.5px;color:var(--tx3);display:flex;align-items:center;gap:6px;cursor:pointer}
+  .msync i{width:6px;height:6px;border-radius:50%;background:var(--tx2);display:inline-block}
+  .head{margin-bottom:18px}
+  h1{font-size:21px}
+  .card,.tcard,.stat{padding:16px 14px 12px;border-radius:12px}
+  /* focus */
+  .focus{padding:14px 0 26px;gap:10px}
+  .clock{font-size:66px}
+  .btn.lg{padding:11px 26px;font-size:15px}
+  .hint{display:none}
+  .fgrid,.bgrid,.mgrid,.pgrid,.plan,.tgrid{grid-template-columns:1fr!important}
+  .dump{min-height:200px;font-size:14px}
+  .planhead{flex-wrap:wrap;gap:10px}
+  /* week becomes a list of days */
+  .weekblock .week,.week{grid-template-columns:1fr;min-height:0}
+  .wcol{border-left:0;border-top:1px solid var(--line);display:grid;grid-template-columns:70px 1fr;align-items:start}
+  .wcol:first-child{border-top:0}
+  .whead{padding:12px 0 0 12px;flex-direction:column;align-items:flex-start;gap:0}
+  .whrs{grid-column:1;padding:2px 0 10px 12px;height:auto}
+  .witems{grid-column:2;grid-row:1/span 3;padding:10px 10px 4px 0}
+  .wadd{grid-column:2;opacity:1;padding:2px 10px 10px 0}
+  .wsum{flex-wrap:wrap;gap:14px}
+  /* lists */
+  .lists{grid-template-columns:1fr;gap:14px;min-height:0}
+  .folders{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .folders .fh{margin:0;padding:0;flex:none}
+  .folders .fh .eyebrow{display:none}
+  .fold{flex:none;border:1px solid var(--line2);padding:7px 12px}
+  .listpane{border-left:0;padding-left:0}
+  .lh{flex-wrap:wrap}
+  /* habits */
+  .habadd{grid-template-columns:1fr 1fr auto}
+  .habadd input[data-k=hab-name]{grid-column:1/-1}
+  .hab{grid-template-columns:1fr;gap:12px;padding:14px}
+  .hab .hcells,.hab .hhist{grid-column:auto}
+  .hcells{max-width:none}
+  .hcells.month .hcell{width:26px;height:26px}
+  .hd-stats{grid-template-columns:1fr 1fr}
+  /* progress & log */
+  .stats,.mstats{grid-template-columns:1fr 1fr;gap:10px}
+  .stat .n{font-size:28px}
+  .sess{grid-template-columns:1fr;gap:4px}
+  .logbar .search{max-width:none}
+  .wtotal{flex-wrap:wrap;gap:14px}
+  /* fitness + money forms */
+  .qadd,.madd{grid-template-columns:1fr 1fr auto!important}
+  .qadd>.sugwrap,.qadd>input:first-child,.madd>input[data-k=m-note]{grid-column:1/-1}
+  .madd>input[data-k=m-day]{grid-column:1/span 2}
+  .madd>input[data-k=m-amt]{grid-column:1/-1}
+  .grip{display:none!important}
+  .fitem .grip{display:none!important}
+  .qadd2{grid-template-columns:1fr 80px auto}
+  .row{flex-wrap:wrap}
+  .modeseg{flex-wrap:wrap}
+  .tn b{font-size:40px}
+  .strip{grid-template-columns:repeat(7,minmax(42px,1fr));overflow-x:auto}
+  .sday{padding:8px 6px}
+  .sday .pv{font-size:15px}
+  .cbar{grid-template-columns:90px 1fr 80px}
+  /* dialogs */
+  .ov{padding:calc(14px + env(safe-area-inset-top)) 12px 12px;align-items:flex-start}
+  .dlg{padding:18px;max-height:calc(100vh - 40px)}
+  .dlg .row label{min-width:40%}
+  .dur-big{font-size:44px}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom))}
+  .gate{padding:24px 18px}
+}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--tx);color:#0a0a0a;padding:9px 16px;border-radius:999px;font-size:13px;z-index:80;animation:fade .15s}
 </style>
@@ -713,7 +800,8 @@ function render(){
   if(a&&a.dataset&&a.dataset.k&&app.contains(a))keep={k:a.dataset.k,v:a.value,s:a.selectionStart,e:a.selectionEnd,t:a.scrollTop};
   const vals={};app.querySelectorAll('input[data-k][data-hold]').forEach(i=>{if(i.value)vals[i.dataset.k]=i.value});
   $('#side').innerHTML=renderSide();
-  $('#main').innerHTML=`<div class="wrap">${(VIEWS[view]||VIEWS.focus)()}</div>`;
+  const _ms=elapsed(),_t=T();
+  $('#main').innerHTML=`<div class="mhead"><span class="brand" style="padding:0"><i></i>Lock in</span>${_ms>0?`<a href="#focus" class="mini ${_t.running?'':'paused'}" data-clock-mini style="text-decoration:none"></a>`:''}<span class="msync" data-act="switch-file">${FILES.study.handle?`<i></i><span data-save="study">${FILES.study.state||'Saved'}</span>`:''}</span></div><div class="wrap">${(VIEWS[view]||VIEWS.focus)()}</div>`;
   Object.entries(vals).forEach(([k,v])=>{const n=app.querySelector(`[data-k="${k}"]`);if(n&&!n.value)n.value=v});
   if(keep){const n=app.querySelector(`[data-k="${keep.k}"]`);if(n){n.value=keep.v;n.focus();try{n.setSelectionRange(keep.s,keep.e)}catch(e){}n.scrollTop=keep.t||0}}
   else{const af=app.querySelector('[data-autofocus]');if(af){af.focus();try{if(selectNext){af.select();selectNext=false}else{const L=af.value.length;af.setSelectionRange(L,L)}}catch(e){}}}
@@ -724,11 +812,11 @@ function render(){
 
 function renderSide(){
   const t=T(),ms=elapsed();
-  const nav=[['focus','Focus'],['lists','Checklists'],['habits','Habits'],['progress','Progress & Log'],['body','Fitness'],['money','Money']];
+  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['body','Fitness','Fitness'],['money','Money','Money']];
   const goal=S.settings.gpaGoal||'';
   const sync=mode==='file'?`<div class="filebox" data-act="switch-file" title="${ghMode?'Sync status':'Click to switch or reconnect your data file'}"><span class="fn">${esc(ghMode?'GitHub sync':FILES.study.handle.name)}</span><div class="sync live"><i></i><span data-save="study">${FILES.study.state||'Saved'}</span></div></div>`:mode==='local'?'<div class="sync"><i></i>Saved in this browser only</div>':'';
   return `<div class="brand"><i></i>Lock in</div>
-  <nav>${nav.map(([k,l])=>`${k==='body'?'<div class="navsep"></div>':''}<a href="#${k}" class="${view===k?'on':''}"><span>${l}</span>${k==='focus'&&ms>0?`<span class="mini ${t.running?'':'paused'}" data-clock-mini></span>`:''}</a>`).join('')}</nav>
+  <nav>${nav.map(([k,l,sl])=>`${k==='body'?'<div class="navsep"></div>':''}<a href="#${k}" class="${view===k?'on':''}"><span class="nl">${l}</span><span class="ns">${sl}</span>${k==='focus'&&ms>0?`<span class="mini ${t.running?'':'paused'}" data-clock-mini></span>`:''}</a>`).join('')}</nav>
   <div class="side-foot">
     <div class="goal" data-act="goal-edit" title="Click to edit">
       <span class="eyebrow">GPA goal</span>
@@ -1070,13 +1158,14 @@ function parseT(s){
   let H=+m[1],M=m[2]?+m[2]:0;const ap=m[3];
   if(ap&&ap[0]==='p'&&H<12)H+=12;if(ap&&ap[0]==='a'&&H===12)H=0;
   const x=/^0\d/.test(s)||H>=13; /* 0700 / 14:00 style = 24-hour, take literally */
-  if(!ap&&!x&&H>=1&&H<=6)H+=12;
-  if(H>23||M>59)return null;return {m:H*60+M,ap:!!ap||x};
+  let sh=false;if(!ap&&!x&&H>=1&&H<=6){H+=12;sh=true}
+  if(H>23||M>59)return null;return {m:H*60+M,ap:!!ap||x,sh,pm:!!ap&&ap[0]==='p'};
 }
 function parsePlan(text){
   const blocks=[],loose=[];let last=-1;
   const fix=(a,b)=>{ /* a,b: parsed start/end; infer pm from writing order and from an explicit pm on the end */
     let s=a.m,e=b?b.m:null;
+    if(b&&b.ap&&!b.pm&&a.sh)s-=720; /* "3-7:30am": an am end time means the start is am too */
     if(b&&b.ap&&!a.ap&&s<720&&e>=720&&s+720<e)s+=720;
     if(!a.ap&&s<last&&s+720<1440){s+=720;if(e!=null&&!(b&&b.ap)&&e<720)e+=720}
     if(e!=null&&e<=s&&e+720>s&&!(b&&b.ap))e+=720;
