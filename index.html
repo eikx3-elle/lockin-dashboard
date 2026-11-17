@@ -1065,7 +1065,7 @@ function renderProgress(){
 const targets=()=>({protein:120,kcal:2000,...((S.bodySettings||{}).targets||{})});
 const bDay=()=>bodyDay||todayKey();
 const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.]/g,''));return isFinite(n)?Math.round(n*10)/10:0};
-const dayFood=k=>S.food.filter(f=>f.day===k);
+const dayFood=k=>S.food.filter(f=>f.day===k&&!f.skipped);
 const sumP=a=>Math.round(a.filter(f=>!f.planned).reduce((s,f)=>s+(+f.protein||0),0));
 const sumAllP=a=>Math.round(a.reduce((s,f)=>s+(+f.protein||0),0));
 const sumAllK=a=>Math.round(a.reduce((s,f)=>s+(+f.kcal||0),0));
@@ -1084,20 +1084,22 @@ const recById=id=>S.recipes.find(x=>x.id===id);
 const recSorted=()=>S.recipes.slice().sort((a,b)=>((a.order??1e9)-(b.order??1e9))||(a.name||'').localeCompare(b.name||''));
 const ingSorted=()=>S.ingredients.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
 const fmtQty=q=>{q=Math.round((+q||0)*1000)/1000;const w=Math.floor(q),f=Math.round((q-w)*100)/100;const m={0.25:'¼',0.5:'½',0.75:'¾',0.33:'⅓',0.67:'⅔'};const fs=f?(m[f]||String(f).replace(/^0/,'')):'';return ((w||!fs)?String(w):'')+fs};
-function recMacros(r){let p=0,k=0;((r&&r.items)||[]).forEach(it=>{const g=ingById(it.ing);if(g){p+=(+g.protein||0)*it.qty;k+=(+g.kcal||0)*it.qty}});return {p:Math.round(p),k:Math.round(k)}}
-function recCost(r){let c=0;((r&&r.items)||[]).forEach(it=>{const g=ingById(it.ing);if(g&&+g.packSize)c+=(+g.packPrice||0)/(+g.packSize)*it.qty});return c}
+function recMacros(r){if(r&&r.protein!=null&&r.kcal!=null)return {p:Math.round(+r.protein||0),k:Math.round(+r.kcal||0)};let p=0,k=0;((r&&r.items)||[]).forEach(it=>{const g=ingById(it.ing);if(g){p+=(+g.protein||0)*it.qty;k+=(+g.kcal||0)*it.qty}});return {p:Math.round(p),k:Math.round(k)}}
+function recCost(r){if(r&&r.price!=null)return +r.price||0;let c=0;((r&&r.items)||[]).forEach(it=>{const g=ingById(it.ing);if(g&&+g.packSize)c+=(+g.packPrice||0)/(+g.packSize)*it.qty});return c}
 const wkKey=d=>dayKey(weekStart(d));
 const weekPlanDoc=wk=>S.weekplans.find(w=>w.id===wk);
 function dayPlan(k){const d=fromKey(k),wp=weekPlanDoc(wkKey(d));if(!wp)return [];const day=(wp.days||{})[DKEYS[(d.getDay()+6)%7]]||{};const out=[];MEALS.forEach(([s])=>(day[s]||[]).forEach((rid,i)=>out.push({slot:s,recId:rid,i,ref:`${k}|${s}|${i}`})));return out}
 const eatenOf=ref=>S.food.find(f=>f.planRef===ref);
 function adjustStock(r,sign){const st={...((S.bodySettings||{}).stock||{})};((r&&r.items)||[]).forEach(it=>{st[it.ing]=Math.round(((+st[it.ing]||0)+sign*it.qty)*1000)/1000});store.bodySettings({stock:st})}
 const planName=rid=>{const r=recById(rid);return r?r.name:String(rid||'').startsWith('txt:')?String(rid).slice(4):'Meal'};
-function eatPlanned(it,day){if(eatenOf(it.ref))return;const r=recById(it.recId),m=r?recMacros(r):{p:0,k:0};store.put('food',uid(),{day,name:planName(it.recId),protein:m.p,kcal:m.k,meal:it.slot,planRef:it.ref,...(r?{recId:r.id}:{}),createdAt:Date.now()});if(r)adjustStock(r,-1)}
-function uneat(entry){const r=recById(entry.recId);if(r)adjustStock(r,1);store.del('food',entry.id)}
+function eatPlanned(it,day){if(eatenOf(it.ref))return;const r=recById(it.recId),m=r?recMacros(r):{p:0,k:0};store.put('food',uid(),{day,name:planName(it.recId),protein:m.p,kcal:m.k,meal:it.slot,planRef:it.ref,...(r?{recId:r.id}:{}),createdAt:Date.now()});}
+function uneat(entry){store.del('food',entry.id)}
 function weekScore(wk){let plan=0,ate=0;const tk=todayKey();for(let i=0;i<7;i++){const k=dayKey(addDays(fromKey(wk),i));if(k>tk)break;dayPlan(k).forEach(it=>{plan++;if(eatenOf(it.ref))ate++})}return {plan,ate}}
+function virtualPlanned(k){return dayPlan(k).filter(it=>!S.food.some(f=>f.planRef===it.ref)).map((it,n)=>{const r=recById(it.recId),m=recMacros(r);return {id:'v:'+it.ref,day:k,name:planName(it.recId),protein:m.p,kcal:m.k,planned:true,meal:it.slot,virtual:true,ref:it.ref,recId:it.recId,order:-1+n/100,createdAt:0}})}
+function realizeVirtual(id,patch){const k=id.slice(2).split('|')[0],v=virtualPlanned(k).find(x=>x.id===id);if(!v)return null;const nid=uid();store.put('food',nid,{day:v.day,name:v.name,protein:v.protein,kcal:v.kcal,planned:true,meal:v.meal,planRef:v.ref,...(recById(v.recId)?{recId:v.recId}:{}),createdAt:Date.now(),...(patch||{})});return nid}
 const emptyDays=()=>Object.fromEntries(DKEYS.map(d=>[d,{breakfast:[],lunch:[],dinner:[],snacks:[]}]));
 const cloneDays=d=>JSON.parse(JSON.stringify(d||emptyDays()));
-function fitTabs(){return `<div class="ftabs">${[['today','Today'],['plan','Week plan'],['groceries','Groceries'],['foods','Foods']].map(([k,l])=>`<span class="${fitTab===k?'on':''}" data-act="fit-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
+function fitTabs(){return `<div class="ftabs">${[['today','Today'],['plan','Week plan']].map(([k,l])=>`<span class="${fitTab===k?'on':''}" data-act="fit-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
 
 function planCardHtml(k){
   const tk=todayKey(),items=dayPlan(k),sc=weekScore(wkKey(fromKey(k)));
@@ -1117,10 +1119,10 @@ function renderWeekPlan(){
   const ws=addDays(weekStart(new Date()),7*planWkOff),wk=dayKey(ws),we=addDays(ws,6),wp=weekPlanDoc(wk),tpl=(S.bodySettings||{}).template,tk=todayKey();
   const label=planWkOff===0?'This week':planWkOff===1?'Next week':planWkOff===-1?'Last week':'Week of '+fmtShort(wk);
   const range=`${ws.getDate()} ${MON[ws.getMonth()]} – ${we.getDate()} ${MON[we.getMonth()]}`;
-  const days=wp?wp.days:null,showN=(S.bodySettings||{}).showNums;
+  const days=wp?wp.days:null,showN=true;
   let cost=0;
   const dayTot=DKEYS.map(dk=>{let p=0,kc=0;MEALS.forEach(([s])=>((days&&days[dk]&&days[dk][s])||[]).forEach(rid=>{const r=recById(rid);const m=recMacros(r);p+=m.p;kc+=m.k;cost+=recCost(r)}));return {p,kc}});
-  const chip=(dk,s,rid,i)=>{const r=recById(rid);return `<span class="wchip" draggable="true" data-chip="${dk}|${s}|${i}">${esc(r?r.name:'?')}<span class="cx" data-act="wp-del" data-dk="${dk}" data-s="${s}" data-i="${i}" title="Remove">×</span></span>`};
+  const chip=(dk,s,rid,i)=>{const r=recById(rid);return `<span class="wchip" draggable="true" data-chip="${dk}|${s}|${i}"><span data-act="meal-edit" data-id="${esc(rid)}" style="cursor:pointer;flex:1" title="Edit this meal">${esc(planName(rid))}</span><span class="cx" data-act="wp-del" data-dk="${dk}" data-s="${s}" data-i="${i}" title="Remove">×</span></span>`};
   const cell=(dk,s)=>`<div class="wpcell" data-dk="${dk}" data-s="${s}">${((days&&days[dk]&&days[dk][s])||[]).map((rid,i)=>chip(dk,s,rid,i)).join('')}<span class="wpadd" data-act="wp-add" data-dk="${dk}" data-s="${s}" title="Add a meal">+</span></div>`;
   const mobile=window.innerWidth<=700;
   let grid;
@@ -1133,7 +1135,10 @@ function renderWeekPlan(){
     <div class="row"><div class="seg"><button class="icon-btn" data-act="wp-prev">‹</button>${planWkOff!==0?'<button class="btn sm" data-act="wp-now">This week</button>':''}<button class="icon-btn" data-act="wp-next">›</button></div></div></div>
   ${grid}
   ${wp?`<div class="row" style="margin-top:16px;gap:8px"><span class="muted mono" style="font-size:12px">≈ ${fmt$(cost)} of food this week</span><span class="sp"></span>${tpl?'<button class="btn sm" data-act="wp-tpl">Reset to standard week</button>':''}<button class="btn sm" data-act="wp-save-tpl">Save as my standard week</button><button class="ghost danger-t" data-act="wp-clear">Clear week</button></div>
-  <div class="muted" style="font-size:12px;margin-top:10px">${mobile?'Tap + to add a meal, × to remove it.':'Drag meals between days, + to add, × to remove.'} Meals and their ingredients live in Foods.</div>`:''}`;
+  <div class="muted" style="font-size:12px;margin-top:10px">${mobile?'Tap + to add a meal, × to remove it, or tap a meal to edit it.':'Drag meals between days, + to add, × to remove, click a meal to edit it.'} Planned meals show up in Today's food log, ready to tick off.</div>`:''}
+  <div class="card" style="margin-top:22px"><h2><span>Your meals</span><span class="ghost" style="padding:0 6px" data-act="meal-new">+ New meal</span></h2>
+    ${recSorted().map(r=>{const m=recMacros(r);return `<div class="item ev" data-act="meal-edit" data-id="${r.id}"><span style="flex:1">${esc(r.name)}</span><span class="tag mono">${m.p}g · ${m.k} kcal · ${fmt$(recCost(r))}</span></div>`}).join('')||'<div class="empty">No meals yet.</div>'}
+    <div class="muted" style="font-size:12px;margin-top:8px">Click a meal to rename it or fix its protein, calories or price. Changes apply wherever it's planned.</div></div>`;
 }
 
 function needFor(w,fromToday){const n={},tk=todayKey();for(let i=0;i<7;i++){const k=dayKey(addDays(fromKey(w),i));if(fromToday&&k<tk)continue;dayPlan(k).forEach(it=>{if(eatenOf(it.ref))return;const r=recById(it.recId);((r&&r.items)||[]).forEach(x=>{n[x.ing]=(n[x.ing]||0)+x.qty})})}return n}
@@ -1185,6 +1190,20 @@ function renderFoods(){
   <div class="muted" style="font-size:12px;margin-top:4px">Change an ingredient's numbers or price here and every meal, plan and grocery list that uses it updates.</div>`;
 }
 
+function mealModal(r,onCreate){
+  const m=r?recMacros(r):{p:'',k:''},pr=r?recCost(r):'';
+  modal(`<div class="eyebrow">${r?'Edit meal':'New meal'}</div><input class="big" id="me2-n" value="${esc(r?r.name:'')}" placeholder="e.g. Chicken bowl" autofocus>
+    <div class="row"><label>Protein (g)<input id="me2-p" inputmode="decimal" value="${m.p}"></label><label>Calories<input id="me2-k" inputmode="numeric" value="${m.k}"></label><label>Price (${esc(cur())})<input id="me2-c" inputmode="decimal" value="${r?(+pr).toFixed(2):''}"></label></div>
+    <div class="muted" style="font-size:12px">${r?'Changes apply everywhere this meal is planned. Meals you\u2019ve already ticked off keep their old numbers.':'You can drop it into any day once it\u2019s saved.'}</div>
+    <div class="row-end">${r?'<button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span>':''}<button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+    d.querySelector('[data-a=c]').onclick=close;
+    const del=d.querySelector('[data-a=del]');if(del)del.onclick=async()=>{if(await confirmBox(`Delete \u201c${r.name}\u201d? It'll also come out of your week plans.`)){close();store.del('recipes',r.id)}};
+    const save=()=>{const name=$('#me2-n',d).value.trim();if(!name){toast('Give the meal a name');return}const id=r?r.id:uid();close();
+      store.put('recipes',id,{...(r||{}),name,protein:num($('#me2-p',d).value),kcal:Math.round(num($('#me2-k',d).value)),price:Math.round(num($('#me2-c',d).value)*100)/100,createdAt:r?r.createdAt:Date.now()});
+      if(!r&&onCreate)onCreate(id)};
+    d.querySelector('[data-a=s]').onclick=save;d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}));
+  });
+}
 const selStyle='font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%';
 function recModal(r){
   const items=r?JSON.parse(JSON.stringify(r.items||[])):[];
@@ -1258,13 +1277,12 @@ function fitAct(a,el){
     const opts=[...recs.map(r=>({id:r.id,name:r.name})),...[...used].map(x=>({id:x,name:x.slice(4)}))];
     const add=rid=>{const cur=weekPlanDoc(wk);const days=cloneDays(cur?cur.days:null);days[ds.dk][ds.s].push(rid);saveDays(days)};
     modal(`<div class="eyebrow">Add to ${DOW[DKEYS.indexOf(ds.dk)]} · ${(MEALS.find(m=>m[0]===ds.s)||[,''])[1]}</div>
-      ${opts.map(o=>`<div class="item ev" data-pick="${esc(o.id)}"><span style="flex:1">${esc(o.name)}</span></div>`).join('')}
-      <div class="row" style="flex-wrap:nowrap"><input id="wa-n" placeholder="Or type a meal, e.g. Chicken wrap" autocomplete="off"><button class="btn" data-a="s">Add</button></div>
-      <div class="row-end"><button class="btn" data-a="c">Cancel</button></div>`,(d,close)=>{
+      ${opts.map(o=>{const r=recById(o.id),m=r?recMacros(r):null;return `<div class="item ev" data-pick="${esc(o.id)}"><span style="flex:1">${esc(o.name)}</span>${m?`<span class="tag mono">${m.p}g · ${m.k} kcal</span>`:''}</div>`}).join('')}
+      <div class="row-end"><button class="ghost" data-a="new">+ New meal</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button></div>`,(d,close)=>{
+      d.querySelector('[data-a=new]').onclick=()=>{close();mealModal(null,id=>add(id))};
       d.querySelector('[data-a=c]').onclick=close;
       d.querySelectorAll('[data-pick]').forEach(p=>p.onclick=()=>{close();add(p.dataset.pick)});
-      const typed=()=>{const n=$('#wa-n',d).value.trim();if(!n)return;close();const r=recs.find(x=>x.name.toLowerCase()===n.toLowerCase());add(r?r.id:'txt:'+n)};
-      d.querySelector('[data-a=s]').onclick=typed;$('#wa-n',d).addEventListener('keydown',e=>{if(e.key==='Enter')typed()});
+
     });return}
   /* groceries */
   const gws=addDays(weekStart(new Date()),7*shopWkOff),gwk=dayKey(gws);
@@ -1293,13 +1311,15 @@ function fitAct(a,el){
         toast(`Logged ${fmt$(paid)}`)};
     });return}
   /* foods */
+  if(a==='meal-new'){mealModal(null);return}
+  if(a==='meal-edit'){const r=recById(ds.id);if(r)mealModal(r);else toast('That one was typed in, so it has no numbers. Remove it and add a saved meal instead.');return}
   if(a==='rec-new'){recModal(null);return}
   if(a==='rec-edit'){const r=recById(ds.id);if(r)recModal(r);return}
   if(a==='ing-new'){ingModal(null);return}
   if(a==='ing-edit'){const g=ingById(ds.id);if(g)ingModal(g);return}
 }
 const fmtNum=n=>String(Math.round(n*1000)/1000);
-const FIT_ACTS=['fit-tab','fit-nums','fit-extra','plan-eat','plan-uneat','plan-eat-all','wp-tick','wp-prev','wp-next','wp-now','wp-tpl','wp-copy','wp-blank','wp-save-tpl','wp-clear','wp-del','wp-add','gr-prev','gr-next','gr-now','gr-got','gr-inc','gr-dec','gr-stock-edit','gr-done','rec-new','rec-edit','ing-new','ing-edit'];
+const FIT_ACTS=['meal-new','meal-edit','fit-tab','fit-nums','fit-extra','plan-eat','plan-uneat','plan-eat-all','wp-tick','wp-prev','wp-next','wp-now','wp-tpl','wp-copy','wp-blank','wp-save-tpl','wp-clear','wp-del','wp-add','gr-prev','gr-next','gr-now','gr-got','gr-inc','gr-dec','gr-stock-edit','gr-done','rec-new','rec-edit','ing-new','ing-edit'];
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.gp)return;const gwk=dayKey(addDays(weekStart(new Date()),7*shopWkOff));setShopRow(gwk,t.dataset.gp,{price:Math.round(num(t.value)*100)/100})});
 /* drag meals between days in the week plan (mouse) */
 document.addEventListener('dragstart',e=>{const c=e.target.closest&&e.target.closest('.wchip');if(!c)return;dragChip=c.dataset.chip;try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragChip)}catch(_){}});
@@ -1328,7 +1348,7 @@ function renderMeals(){
   :`<div class="card" style="padding:26px"><p class="muted" style="margin-bottom:16px">No plan for this week yet.</p><div class="row">${tpl?'<button class="btn pri" data-act="wp-tpl">Use my standard week</button>':''}<button class="btn" data-act="wp-copy">Copy last week</button><button class="btn" data-act="wp-blank">Start blank</button></div></div>`}`;
 }
 function renderBody(){const BF=FILES.body;if(!BF.handle&&mode!=='local')return renderBodyToday();
-  return renderMeals();
+  return fitTabs()+(fitTab==='plan'?renderWeekPlan():renderBodyToday());
   return fitTabs()+(fitTab==='plan'?renderWeekPlan():fitTab==='groceries'?renderGroceries():fitTab==='foods'?renderFoods():renderBodyToday());}
 function renderBodyToday(){
   const BF=FILES.body;
@@ -1343,8 +1363,7 @@ function renderBodyToday(){
     </div>`;
   }
   const k=bDay(),tk=todayKey(),tg=targets(),d=fromKey(k);
-  const showNums=!!(S.bodySettings||{}).showNums;
-  const foods=dayFood(k).sort(foodSort);const cm=curMeal(k);
+  const foods=[...dayFood(k),...virtualPlanned(k)].sort(foodSort);const cm=curMeal(k);
   const P=sumP(foods),K=sumK(foods),PP=sumAllP(foods),KK=sumAllK(foods),hasPlan=foods.some(f=>f.planned),isFut=k>tk;
   const fmode=isFut?'plan':foodMode;
   const meals=S.meals.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
@@ -1361,13 +1380,11 @@ function renderBodyToday(){
     const pts=recentW.map((w,i)=>`${(i/(recentW.length-1)*100).toFixed(2)},${(46-((w.kg-mn)/rg)*40).toFixed(2)}`).join(' ');
     spark=`<svg class="spark" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#9a9a9a" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg><div class="row" style="justify-content:space-between;font:11px var(--mono);color:var(--tx4)"><span>${fmtShort(recentW[0].day)}</span><span>${mn}–${mx} kg</span><span>${fmtShort(recentW[recentW.length-1].day)}</span></div>`}
   const strip=[6,5,4,3,2,1,0].map(i=>{const dd=addDays(new Date(),-i),kk=dayKey(dd),f=dayFood(kk),p=sumP(f),kc=sumK(f),tr=S.workouts.some(w=>w.day===kk);
-    return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${i===0?'Today':dow(dd)}</span>${(()=>{const pl=dayPlan(kk),ea=pl.filter(x=>eatenOf(x.ref)).length;return `<span class="dot ${pl.length&&ea>=pl.length?'on':''}" title="Ate every planned meal"></span></div><div class="pv">${pl.length?`${ea}<span class="muted" style="font-size:11px">/${pl.length}</span>`:'<span class="muted">–</span>'}</div><div class="kv">${showNums&&f.length?p+'g · '+kc+' kcal':pl.length?'meals':'&nbsp;'}</div>`})()}<div class="kv">${[tr?'trained':'',f.some(x=>x.cheat&&!x.planned)?'cheat':''].filter(Boolean).join(' · ')||'&nbsp;'}</div></div>`}).join('');
+    return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${i===0?'Today':dow(dd)}</span><span class="dot ${p>=tg.protein&&p>0?'on':''}" title="Protein goal"></span></div><div class="pv">${f.length?p+'<span class="muted" style="font-size:11px"> g</span>':'<span class="muted">–</span>'}</div><div class="kv">${f.length?kc+' kcal':'&nbsp;'}</div><div class="kv">${[tr?'trained':'',f.some(x=>x.cheat&&!x.planned)?'cheat':''].filter(Boolean).join(' · ')||'&nbsp;'}</div></div>`}).join('');
   const label=k===tk?'Today':k===dayKey(addDays(new Date(),-1))?'Yesterday':k===dayKey(addDays(new Date(),1))?'Tomorrow':fmtDay(d);
   const maxDay=dayKey(addDays(new Date(),7));
   return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${label} <span style="color:var(--tx4);text-transform:none;letter-spacing:0">· ${BF.handle?'<span data-act="body-open" title="Click to switch file" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--tx4)">'+esc(BF.handle.name)+'</span> · <span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${fmtDay(d)}</h1></div>
     <div class="row"><div class="seg"><button class="icon-btn" data-act="body-prev">‹</button>${k!==tk?'<button class="btn sm" data-act="body-today">Today</button>':''}<button class="icon-btn" data-act="body-next" ${k>=maxDay?'disabled style="opacity:.3"':''} title="${k===tk?'Plan tomorrow':'Next day'}">›</button></div><button class="ghost" data-act="goals-edit">Edit goals</button></div></div>
-  ${planCardHtml(k)}
-  ${showNums?`
   <div class="tgrid">
     <div class="tcard"><div class="eyebrow">Protein</div><div class="tn"><b>${isFut?PP:P}</b><span>/ ${tg.protein} g${isFut?' planned':''}</span></div><div class="tbar ${P>=tg.protein?'hit':''}">${hasPlan?`<u style="width:${Math.min(100,PP/tg.protein*100)}%"></u>`:''}<i style="width:${Math.min(100,P/tg.protein*100)}%"></i></div><div class="tsub">${isFut?(PP?`${PP} g planned · ${PP>=tg.protein?'goal covered':`${tg.protein-PP} g short`}`:'Nothing planned yet'):P>=tg.protein?'Goal hit':`${tg.protein-P} g to go`}${!isFut&&hasPlan?` · ${PP} g with what's planned`:''}</div></div>
     <div class="tcard"><div class="eyebrow">Calories</div><div class="tn"><b>${isFut?KK:K}</b><span>/ ${tg.kcal} kcal${isFut?' planned':''}</span></div><div class="tbar">${hasPlan?`<u style="width:${Math.min(100,KK/tg.kcal*100)}%"></u>`:''}<i style="width:${Math.min(100,K/tg.kcal*100)}%"></i></div><div class="tsub">${isFut?(KK?`${KK} kcal planned · ${KK<=tg.kcal?`${tg.kcal-KK} left`:`${KK-tg.kcal} over`}`:'&nbsp;'):K<=tg.kcal?`${tg.kcal-K} kcal left`:`${K-tg.kcal} kcal over`}${!isFut&&hasPlan?` · ${KK} with what's planned`:''}</div></div>
@@ -1392,8 +1409,6 @@ function renderBodyToday(){
         ${since!=null?`<div class="muted" style="font-size:12px;margin:-2px 0 8px">Last one ${since===0?'today':since===1?'yesterday':since+' days ago'}</div>`:''}
         ${ch.slice(0,8).map(x=>`<div class="item ev" data-act="food-edit" data-id="${x.id}"><span class="t" style="min-width:58px">${fmtShort(x.day)}</span><span style="flex:1">${esc(x.name)}${x.planned?'<span class="pl-badge">planned</span>':''}</span><span class="tag mono">${x.protein}g · ${x.kcal} kcal</span></div>`).join('')||'<div class="empty">None logged. They also count in that day\u2019s totals.</div>'}
         </div>`})()}
-    </div></div>`:''}
-  <div class="tgrid" style="align-items:start">
       <div class="card"><h2>Training</h2>
         <div class="qadd2"><input data-k="wo-text" data-hold data-enter="wo-add" placeholder="e.g. Push day, 5k run, abs"><input data-k="wo-min" data-hold data-enter="wo-add" inputmode="numeric" placeholder="Min"><button class="btn sm" data-act="wo-add">Add</button></div>
         ${recentWo.length?`<div class="chips2">${recentWo.map(t=>`<span class="cbtn" data-act="wo-quick" data-text="${esc(t)}">${esc(t)}</span>`).join('')}</div>`:''}
@@ -1404,11 +1419,18 @@ function renderBodyToday(){
         ${last?`<div class="wbig">${last.kg}<small>kg · ${fmtShort(last.day)}</small></div>${spark}`:'<div class="empty">No weigh-ins yet. Daily weight jumps around, so the 7-day average is the number to watch.</div>'}
         ${ws.length?`<div style="margin-top:10px">${ws.slice(-4).reverse().map(w=>`<div class="item"><span class="t">${fmtShort(w.day)}</span><span style="flex:1;cursor:pointer" data-act="wt-edit" data-id="${w.id}" title="Click to edit">${w.kg} kg</span><span class="x" data-act="wt-del" data-id="${w.id}">×</span></div>`).join('')}</div>`:''}
       </div>
+    </div>
   </div>
-  <div class="card"><h2><span>Last 7 days</span><span class="muted" style="font-size:12px;display:flex;align-items:center;gap:6px"><span class="dot on"></span> ate every planned meal</span></h2><div class="strip">${strip}</div></div>`;
+  <div class="card"><h2><span>Last 7 days</span><span class="muted" style="font-size:12px;display:flex;align-items:center;gap:6px"><span class="dot on"></span> protein goal hit</span></h2><div class="strip">${strip}</div></div>`;
 }
 function bodyAct(a,el){
   const k=bDay(),q=s=>$(`[data-k=${s}]`);
+  const vid=el&&el.dataset&&el.dataset.id;
+  if(vid&&String(vid).startsWith('v:')){
+    if(a==='food-eat'){realizeVirtual(vid,{planned:false});return}
+    if(a==='food-del'){const kk=vid.slice(2).split('|')[0],v=virtualPlanned(kk).find(x=>x.id===vid);if(v)store.put('food',uid(),{day:v.day,name:v.name,protein:0,kcal:0,planRef:v.ref,skipped:true,createdAt:Date.now()});return}
+    if(a==='food-edit'){const nid=realizeVirtual(vid);if(nid)bodyAct('food-edit',{dataset:{id:nid}});return}
+  }
   if(a==='body-create'){createFile(FILES.body);return}
   if(a==='body-open'){if(serverMode){toast(cloudMode?'Your data syncs to your Claude account. Nightly backups go to D:\\LOCK IN.':'Your data lives in D:\\LOCK IN');return}if(FILES.body.dirty)flush(FILES.body);openFile(FILES.body);return}
   if(a==='body-reconnect'){reconnect(FILES.body,FILES.body.pending);return}
@@ -1466,7 +1488,7 @@ function bodyAct(a,el){
     toast(`Logged for ${day===todayKey()?'today':fmtShort(day)}`)}
   else if(a==='food-mode'){foodMode=el.dataset.m==='plan'?'plan':'ate';render()}
   else if(a==='food-eat'){store.patch('food',el.dataset.id,{planned:false,createdAt:Date.now()})}
-  else if(a==='food-eat-all'){dayFood(k).filter(f=>f.planned).forEach(f=>store.patch('food',f.id,{planned:false}))}
+  else if(a==='food-eat-all'){dayFood(k).filter(f=>f.planned).forEach(f=>store.patch('food',f.id,{planned:false}));virtualPlanned(k).forEach(v=>realizeVirtual(v.id,{planned:false}))}
   else if(a==='body-today'){bodyDay=null;render()}
   else if(a==='body-day'){bodyDay=el.dataset.date===todayKey()?null:el.dataset.date;render()}
   else if(a==='goals-edit'){const tg=targets();
