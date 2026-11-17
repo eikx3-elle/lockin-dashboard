@@ -357,6 +357,29 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .hd-bars .b{flex:1;background:#3a3a3a;border-radius:3px 3px 0 0;min-height:2px}
 .hd-bars .b.hit{background:var(--tx)}
 .hd-bars .tg{position:absolute;left:0;right:0;border-top:1px dashed var(--tx3)}
+/* grocery list */
+.gadd{display:grid;grid-template-columns:1fr 90px 90px auto;gap:8px;margin-bottom:12px}
+.gi{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line)}
+.gi:last-child{border-bottom:none}
+.gi .chk{margin-top:0}
+.gi .nm{flex:1;min-width:0;cursor:pointer}
+.gi .q{font:12px var(--mono);color:var(--tx3)}
+.gi .gpr{font:12.5px var(--mono);color:var(--tx2);min-width:52px;text-align:right}
+.gi .st{cursor:pointer;color:var(--tx4);font-size:14px;width:18px;text-align:center;user-select:none}
+.gi .st.on{color:var(--tx)}
+.gi.got .nm{color:var(--tx4);text-decoration:line-through}
+.gi.got .gpr,.gi.got .q{color:var(--tx4)}
+.gi .x{opacity:.35;cursor:pointer;padding:0 4px}
+.gi .x:hover{opacity:1}
+.mgrid>*{min-width:0}
+.gfoot{flex-wrap:wrap;display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.vs{display:flex;flex-direction:column;gap:12px;margin-top:6px}
+.vs .r{display:grid;grid-template-columns:90px 1fr 70px;gap:10px;align-items:center;font-size:13px}
+.vs .r .tr{height:8px;background:#161616;border-radius:4px;overflow:hidden}
+.vs .r .tr i{display:block;height:100%;background:var(--tx2);border-radius:4px}
+.vs .r .am{font:12px var(--mono);color:var(--tx2);text-align:right}
+@media (max-width:700px){.gadd{grid-template-columns:1fr 1fr auto}.gadd input[data-k=g-name]{grid-column:1/-1}}
+.gadd input{min-width:0}
 .mstats{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:14px;margin-bottom:16px}
 .mgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-bottom:16px;align-items:start}
 .madd{display:grid;grid-template-columns:110px 1fr 150px auto;gap:8px;margin-bottom:10px}
@@ -628,7 +651,7 @@ async function safe(p){try{return await p}catch(e){console.error(e);toast(e&&e.c
 const STUDY_COLS=['sessions','folders','tasks','events','plans','habits'];
 const BODY_COLS=['food','meals','workouts','weights','ingredients','recipes','weekplans','shops'];
 const mkFile=(name,idbKey,cols,sk,suggested)=>({name,idbKey,cols,sk,suggested,handle:null,pending:null,lastWrite:0,saving:false,dirty:false,ops:[],timer:null,state:''});
-const FILES={study:mkFile('study','file',STUDY_COLS,'settings','lockin-work.json'),body:mkFile('body','bodyfile',BODY_COLS,'bodySettings','lockin-fitness.json'),money:mkFile('money','moneyfile',['expenses'],'moneySettings','lockin-money.json')};
+const FILES={study:mkFile('study','file',STUDY_COLS,'settings','lockin-work.json'),body:mkFile('body','bodyfile',BODY_COLS,'bodySettings','lockin-fitness.json'),money:mkFile('money','moneyfile',['expenses','groceries'],'moneySettings','lockin-money.json')};
 const fileOf=col=>col==='expenses'?FILES.money:BODY_COLS.includes(col)?FILES.body:FILES.study;
 let legacyBody=null; // body data found inside an older study file, moved out once the body file exists
 
@@ -684,7 +707,7 @@ function seed(F){
     S.sessions=[];S.events=[];
     S.settings={gpaGoal:'',timer:{running:false,acc:0,startedAt:null,firstStart:null}};
   }else if(F.name==='money'){
-    S.expenses=[];S.moneySettings={currency:'$',budget:0,categories:DEFAULT_CATS.slice()};
+    S.expenses=[];S.groceries=[];S.moneySettings={currency:'$',budget:0,categories:DEFAULT_CATS.slice()};
   }else{
     const lb=legacyBody||{};
     BODY_COLS.forEach(k=>S[k]=lb[k]||[]);
@@ -1909,6 +1932,105 @@ const cats=()=>{const c=(S.moneySettings||{}).categories;return Array.isArray(c)
 const fmt$=n=>cur()+(Math.round((+n||0)*100)/100).toFixed(2);
 const fmt$0=n=>cur()+((+n||0)>=100?Math.round(+n||0).toLocaleString():(Math.round((+n||0)*100)/100).toFixed(2));
 const sum$=a=>a.reduce((s,x)=>s+(+x.amount||0),0);
+/* ---------- grocery list ---------- */
+let moneyTab='spend',groWkOff=0;
+const groCat=()=>cats().find(c=>/grocer/i.test(c))||'Groceries';
+const eatCat=()=>cats().find(c=>/^(food|eat)/i.test(c))||'Food';
+function moneyTabs(){return `<div class="ftabs">${[['spend','Spending'],['gro','Grocery list']].map(([k,l])=>`<span class="${moneyTab===k?'on':''}" data-act="money-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
+function groWk(){return dayKey(addDays(weekStart(new Date()),7*groWkOff))}
+function groItems(wk){return S.groceries.filter(g=>g.wk===wk).sort((a,b)=>(!!a.got-!!b.got)||((a.order??a.createdAt)-(b.order??b.createdAt)))}
+function groStaples(){const m=new Map();S.groceries.slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).forEach(g=>{const k=g.name.toLowerCase();if(g.staple)m.set(k,g);else if(m.has(k)&&m.get(k).wk<=g.wk&&!g.staple&&g.unstar)m.delete(k)});return [...m.values()]}
+function renderGrocery(){
+  const MF=FILES.money,wk=groWk(),we=dayKey(addDays(fromKey(wk),6)),cw=dayKey(weekStart(new Date()));
+  const items=groItems(wk),todo=items.filter(g=>!g.got),got=items.filter(g=>g.got);
+  const est=items.reduce((s,g)=>s+(+g.price||0),0);
+  const gb=+((S.moneySettings||{}).groceryBudget)||0;
+  const inWk=e=>e.day>=wk&&e.day<=we;
+  const groSpent=sum$(S.expenses.filter(e=>inWk(e)&&e.category===groCat()));
+  const eatWk=S.expenses.filter(e=>inWk(e)&&e.category===eatCat());
+  const shops=S.expenses.filter(e=>e.gwk===wk);
+  const offWk=shops.reduce((s,e)=>s+(+e.offList||0),0);
+  const mk=wk.slice(0,7);
+  const mGro=sum$(S.expenses.filter(e=>(e.day||'').startsWith(mk)&&e.category===groCat())),mEatL=S.expenses.filter(e=>(e.day||'').startsWith(mk)&&e.category===eatCat()),mEat=sum$(mEatL);
+  const mOff=S.expenses.filter(e=>(e.day||'').startsWith(mk)&&e.offList).reduce((s,e)=>s+(+e.offList||0),0);
+  const mx=Math.max(1,mGro,mEat);
+  const have=new Set(items.map(g=>g.name.toLowerCase()));
+  const missing=groStaples().filter(g=>!have.has(g.name.toLowerCase()));
+  const prevWk=dayKey(addDays(fromKey(wk),-7)),prev=S.groceries.filter(g=>g.wk===prevWk);
+  const row=g=>`<div class="gi ${g.got?'got':''}"><span class="chk ${g.got?'on':''}" data-act="gro-tick" data-id="${g.id}"></span><span class="nm" data-act="gro-edit" data-id="${g.id}">${esc(g.name)}${g.qty?` <span class="q">× ${esc(g.qty)}</span>`:''}</span><span class="st ${g.staple?'on':''}" data-act="gro-star" data-id="${g.id}" title="${g.staple?'Staple: suggested every week':'Make this a weekly staple'}">${g.staple?'★':'☆'}</span><span class="gpr">${g.price?fmt$(g.price):''}</span><span class="x" data-act="gro-del" data-id="${g.id}">×</span></div>`;
+  const label=wk===cw?'This week':wk===dayKey(addDays(fromKey(cw),7))?'Next week':wk===dayKey(addDays(fromKey(cw),-7))?'Last week':'Week of '+fmtShort(wk);
+  return `<div class="head"><div class="l"><span class="eyebrow">Money · <span style="text-transform:none;letter-spacing:0;color:var(--tx4)"><span data-save="money">${MF.state||'Saved'}</span></span></span><h1>Grocery list</h1></div>
+    <div class="row"><div class="seg"><button class="icon-btn" data-act="gro-prev">‹</button><span class="muted" style="font-size:13px;min-width:86px;text-align:center">${label}</span><button class="icon-btn" data-act="gro-next" ${groWkOff>=1?'disabled style="opacity:.3"':''}>›</button></div></div></div>
+  ${moneyTabs()}
+  <div class="mstats">
+    <div class="tcard" style="cursor:pointer" data-act="gro-budget"><div class="eyebrow">List total (est.)</div><div class="tn"><b>${fmt$0(est)}</b>${gb?`<span>/ ${fmt$0(gb)}</span>`:'<span style="font-size:12px">set a weekly budget</span>'}</div>${gb?`<div class="tbar"><i style="width:${Math.min(100,est/gb*100)}%"></i></div>`:''}</div>
+    <div class="stat"><div class="eyebrow">Spent on groceries</div><div class="n">${fmt$0(groSpent)}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${fmtShort(wk)} – ${fmtShort(we)}</div></div>
+    <div class="stat"><div class="eyebrow">Eating out</div><div class="n">${fmt$0(sum$(eatWk))}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${eatWk.length} ${eatWk.length===1?'time':'times'} this week</div></div>
+    <div class="stat"><div class="eyebrow">Off-list buys</div><div class="n">${fmt$0(offWk)}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${shops.length?'this week':'log a shop to track'}</div></div>
+  </div>
+  <div class="mgrid">
+    <div class="card"><h2><span>${label}'s list</span><span class="muted mono" style="font-size:12px">${got.length}/${items.length} in basket</span></h2>
+      <div class="gadd"><input data-k="g-name" data-hold data-enter4="gro-add" placeholder="Add an item, e.g. eggs" autocomplete="off" list="g-names"><input data-k="g-qty" data-hold data-enter4="gro-add" placeholder="Qty"><input data-k="g-price" data-hold data-enter4="gro-add" inputmode="decimal" placeholder="${cur()} est."><button class="btn sm" data-act="gro-add">Add</button></div>
+      <datalist id="g-names">${[...new Map(S.groceries.map(g=>[g.name.toLowerCase(),g])).values()].map(g=>`<option value="${esc(g.name)}">`).join('')}</datalist>
+      ${missing.length||(!items.length&&prev.length)?`<div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap">${missing.length?`<button class="btn sm" data-act="gro-staples">+ Add my staples (${missing.length})</button>`:''}${!items.length&&prev.length?`<button class="btn sm" data-act="gro-copy">Copy last week’s list</button>`:''}</div>`:''}
+      ${todo.map(row).join('')}
+      ${got.length?`<div class="mhd" style="margin-top:14px">In the basket</div>${got.map(row).join('')}`:''}
+      ${!items.length?'<div class="empty">Write the list before you go, then only buy what’s on it. Tap ☆ on things you buy every week and they’ll be one tap to add next time.</div>':''}
+      ${items.length?`<div class="gfoot"><span class="muted" style="font-size:12.5px;flex:1">${shops.length?`Logged ${fmt$(sum$(shops))}${offWk?` · ${fmt$(offWk)} off-list`:''}`:'Tick items as they go in the basket.'}</span>${got.length?'<button class="ghost" data-act="gro-clear">Clear ticked</button>':''}<button class="btn pri sm" data-act="gro-done">Done shopping</button></div>`:''}
+    </div>
+    <div class="bcol">
+      <div class="card"><h2><span>Cooking vs eating out</span><span class="muted mono" style="font-size:11.5px">${MON[fromKey(wk).getMonth()]}</span></h2>
+        <div class="vs"><div class="r"><span>Groceries</span><div class="tr"><i style="width:${mGro/mx*100}%"></i></div><span class="am">${fmt$0(mGro)}</span></div>
+        <div class="r"><span>Eating out</span><div class="tr"><i style="width:${mEat/mx*100}%;background:var(--tx4)"></i></div><span class="am">${fmt$0(mEat)}</span></div></div>
+        <div class="muted" style="font-size:12.5px;margin-top:14px;line-height:1.5">${mEatL.length} eat-out ${mEatL.length===1?'purchase':'purchases'} this month${mEatL.length?`, about ${fmt$(mEat/mEatL.length)} each`:''}.${mOff?` Off-list grocery buys: ${fmt$(mOff)}.`:''}</div>
+        <div class="muted" style="font-size:11.5px;margin-top:8px">Counts “${esc(groCat())}” and “${esc(eatCat())}” from Spending.</div>
+      </div>
+    </div>
+  </div>`;
+}
+function groAct(a,el){
+  const wk=groWk(),id=el.dataset.id,g=id&&S.groceries.find(x=>x.id===id);
+  if(a==='money-tab'){moneyTab=el.dataset.t;render();return}
+  if(a==='gro-prev'){groWkOff--;render();return}
+  if(a==='gro-next'){if(groWkOff<1){groWkOff++;render()}return}
+  if(a==='gro-add'){const N=$('[data-k=g-name]'),Q=$('[data-k=g-qty]'),P=$('[data-k=g-price]');const name=N.value.trim();if(!name){N.focus();return}
+    const old=S.groceries.slice().sort((x,y)=>(y.createdAt||0)-(x.createdAt||0)).find(x=>x.name.toLowerCase()===name.toLowerCase());
+    let price=Math.round(num(P.value)*100)/100;if(!P.value.trim()&&old)price=old.price||0;
+    const qty=Q.value.trim()||(old?old.qty||'':'');N.value='';Q.value='';P.value='';
+    store.put('groceries',uid(),{wk,name,qty,price,got:false,staple:!!(old&&old.staple),order:Date.now(),createdAt:Date.now()});const n=$('[data-k=g-name]');n&&n.focus();return}
+  if(a==='gro-tick'&&g){store.patch('groceries',g.id,{got:!g.got});return}
+  if(a==='gro-del'&&g){store.del('groceries',g.id);return}
+  if(a==='gro-star'&&g){const on=!g.staple;S.groceries.filter(x=>x.name.toLowerCase()===g.name.toLowerCase()).forEach(x=>store.patch('groceries',x.id,{staple:on,unstar:!on}));toast(on?'Staple: it’ll be suggested every week':'No longer a staple');return}
+  if(a==='gro-staples'){const have=new Set(groItems(wk).map(x=>x.name.toLowerCase()));let t=Date.now();groStaples().filter(x=>!have.has(x.name.toLowerCase())).forEach(x=>store.put('groceries',uid(),{wk,name:x.name,qty:x.qty||'',price:x.price||0,got:false,staple:true,order:t,createdAt:t++}));return}
+  if(a==='gro-copy'){const pw=dayKey(addDays(fromKey(wk),-7));let t=Date.now();S.groceries.filter(x=>x.wk===pw).forEach(x=>store.put('groceries',uid(),{wk,name:x.name,qty:x.qty||'',price:x.price||0,got:false,staple:!!x.staple,order:t,createdAt:t++}));return}
+  if(a==='gro-clear'){groItems(wk).filter(x=>x.got).forEach(x=>store.del('groceries',x.id));return}
+  if(a==='gro-edit'&&g){
+    modal(`<div class="eyebrow">Edit item</div><input class="big" id="ge-n" value="${esc(g.name)}" autofocus>
+      <div class="row"><label>Qty<input id="ge-q" value="${esc(g.qty||'')}" placeholder="e.g. 2, 500g"></label><label>Est. price (${esc(cur())})<input id="ge-p" inputmode="decimal" value="${g.price||''}"></label></div>
+      <div class="row-end"><button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+      const save=()=>{close();store.patch('groceries',g.id,{name:$('#ge-n',d).value.trim()||g.name,qty:$('#ge-q',d).value.trim(),price:Math.round(num($('#ge-p',d).value)*100)/100})};
+      d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=del]').onclick=()=>{close();store.del('groceries',g.id)};
+      d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}))});return}
+  if(a==='gro-budget'){const b=+((S.moneySettings||{}).groceryBudget)||0;
+    modal(`<div class="eyebrow">Weekly grocery budget</div><label>Budget per week (${esc(cur())})<input id="gb-b" inputmode="decimal" value="${b||''}" placeholder="e.g. 50" autofocus></label><div class="muted" style="font-size:12px">Leave empty for no budget.</div>
+      <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+      const save=()=>{close();store.moneySettings({groceryBudget:num($('#gb-b',d).value)})};
+      d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=save;$('#gb-b',d).addEventListener('keydown',e=>{if(e.key==='Enter')save()})});return}
+  if(a==='gro-done'){const items=groItems(wk),got=items.filter(x=>x.got),est=(got.length?got:items).reduce((s,x)=>s+(+x.price||0),0);
+    const day=wk===dayKey(weekStart(new Date()))?todayKey():wk;
+    modal(`<div class="eyebrow">Done shopping</div>
+      <div class="row"><label>What did you pay? (${esc(cur())})<input id="gd-t" inputmode="decimal" value="${est?est.toFixed(2):''}" placeholder="receipt total" autofocus></label><label>Day<input type="date" id="gd-d" value="${day}"></label></div>
+      <label>How much of that wasn’t on the list? (${esc(cur())})<input id="gd-o" inputmode="decimal" placeholder="0 if you stuck to it"></label>
+      <div class="muted" style="font-size:12px;line-height:1.5">Logs one “${esc(groCat())}” purchase in Spending. Be honest about off-list buys. Seeing the number is the point.</div>
+      <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Log it</button></div>`,(d,close)=>{
+      const save=()=>{const amount=Math.round(num($('#gd-t',d).value)*100)/100;if(!amount){toast('Enter what you paid');return}
+        const off=Math.min(amount,Math.round(num($('#gd-o',d).value)*100)/100);close();
+        if(!cats().includes(groCat()))store.moneySettings({categories:[...cats(),groCat()]});
+        store.put('expenses',uid(),{day:$('#gd-d',d).value||day,amount,note:'Groceries'+(got.length?` (${got.length} items)`:''),category:groCat(),gwk:wk,...(off?{offList:off}:{}),createdAt:Date.now()});
+        toast(off?`Logged. ${fmt$(off)} off-list`:'Logged. Stuck to the list 👌')};
+      d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=save;d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}))});return}
+}
+const GRO_ACTS=['money-tab','gro-prev','gro-next','gro-add','gro-tick','gro-del','gro-star','gro-staples','gro-copy','gro-clear','gro-edit','gro-budget','gro-done'];
 function renderMoney(){
   const MF=FILES.money;
   if(!MF.handle&&mode!=='local'){
@@ -1920,6 +2042,7 @@ function renderMoney(){
        <div class="row"><button class="btn pri" data-act="money-create">Create money file</button><button class="btn" data-act="money-open">Open an existing one</button></div>`}
     </div>`;
   }
+  if(moneyTab==='gro')return renderGrocery();
   const now=new Date(),tk=todayKey();
   const mStart=new Date(now.getFullYear(),now.getMonth()+moneyOff,1),mEnd=new Date(mStart.getFullYear(),mStart.getMonth()+1,1);
   const mk=monthKey(mStart),isCur=moneyOff===0,dim=new Date(mStart.getFullYear(),mStart.getMonth()+1,0).getDate();
@@ -1939,6 +2062,7 @@ function renderMoney(){
   const notes=[...new Map(S.expenses.slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).filter(e=>e.note).map(e=>[e.note.toLowerCase(),e])).values()];
   return `<div class="head"><div class="l"><span class="eyebrow">Money · <span style="text-transform:none;letter-spacing:0;color:var(--tx4)">${MF.handle?esc(MF.handle.name)+' · <span data-save="money">'+(MF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${MON[mStart.getMonth()]} ${mStart.getFullYear()}</h1></div>
     <div class="row"><div class="seg"><button class="icon-btn" data-act="money-prev">‹</button>${!isCur?'<button class="btn sm" data-act="money-now">This month</button>':''}<button class="icon-btn" data-act="money-next" ${isCur?'disabled style="opacity:.3"':''}>›</button></div><button class="ghost" data-act="money-budget">${budget?'Budget':'Set budget'}</button><button class="ghost" data-act="money-cats">Categories</button></div></div>
+  ${moneyTabs()}
   <div class="mstats">
     <div class="tcard"><div class="eyebrow">${isCur?'This month':'Month total'}</div><div class="tn"><b>${fmt$0(total)}</b>${budget?`<span>/ ${fmt$0(budget)}</span>`:''}</div>${budget?`<div class="tbar"><i style="width:${Math.min(100,total/budget*100)}%"></i></div><div class="tsub">${total<=budget?`${fmt$0(budget-total)} left`:`${fmt$0(total-budget)} over`}${isCur?` · ${dim-now.getDate()} days to go`:''}</div>`:`<div class="tsub">${ex.length} purchase${ex.length===1?'':'s'}</div>`}</div>
     <div class="stat"><div class="eyebrow">Today</div><div class="n">${fmt$0(today)}</div></div>
@@ -2150,6 +2274,7 @@ document.addEventListener('click',async e=>{
   if(BODY_ACTS.includes(a)){e.stopPropagation();bodyAct(a,el);return}
   if(HAB_ACTS.includes(a)){habitAct(a,el);return}
   if(FIT_ACTS.includes(a)){fitAct(a,el);return}
+  if(GRO_ACTS.includes(a)){e.stopPropagation();groAct(a,el);return}
   if(MONEY_ACTS.includes(a)){moneyAct(a,el);return}
   if(a==='plan-prev'){planOff--;render();return}
   if(a==='plan-next'){planOff++;render();return}
@@ -2204,6 +2329,7 @@ document.addEventListener('keydown',e=>{
   }
   if(el.dataset&&el.dataset.enter&&e.key==='Enter'){e.preventDefault();bodyAct(el.dataset.enter,el);return}
   if(el.dataset&&el.dataset.enter2&&e.key==='Enter'){e.preventDefault();habitAct(el.dataset.enter2,el);return}
+  if(el.dataset&&el.dataset.enter4&&e.key==='Enter'){e.preventDefault();groAct(el.dataset.enter4,el);return}
   if(el.dataset&&el.dataset.enter3&&e.key==='Enter'){e.preventDefault();moneyAct(el.dataset.enter3,el);return}
   if(e.key==='Escape'&&modalOpen()){const r=$('#modal-root');r.lastElementChild.remove();return}
   const typing=el.matches&&el.matches('input,textarea,[contenteditable]');
