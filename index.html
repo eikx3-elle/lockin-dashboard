@@ -378,6 +378,40 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .mamt{font:13px var(--mono);white-space:nowrap}
 @media (max-width:980px){#app{grid-template-columns:168px 1fr}main{padding:30px 24px 80px}.mstats,.stats{grid-template-columns:1fr 1fr}.fgrid,.bgrid,.mgrid,.pgrid,.plan,.tgrid{grid-template-columns:1fr}.lists{grid-template-columns:180px 1fr}.week{overflow-x:auto}.hab{grid-template-columns:18px 1fr}.hab .hcells,.hab .hhist{grid-column:2}}
 /* fitness tabs */
+/* training log */
+.wtypes{display:flex;flex-wrap:wrap;gap:6px}
+.wtypes span{font-size:13px;color:var(--tx3);border:1px solid var(--line2);border-radius:999px;padding:6px 13px;cursor:pointer;user-select:none}
+.wtypes span:hover{color:var(--tx)}
+.wtypes span.on{color:#0a0a0a;background:var(--tx);border-color:var(--tx)}
+.feel{display:flex;gap:6px}
+.feel span{flex:1;text-align:center;font-size:11.5px;color:var(--tx3);border:1px solid var(--line2);border-radius:8px;padding:7px 2px;cursor:pointer;user-select:none}
+.feel span.on{color:#0a0a0a;background:var(--tx);border-color:var(--tx)}
+.wo{border:1px solid var(--line);border-radius:12px;padding:14px 15px 12px;margin-top:10px;cursor:pointer;background:var(--s1)}
+.wo:hover{border-color:var(--line2)}
+.wo .top{display:flex;align-items:baseline;gap:10px}
+.wo .ttl{font-weight:600;font-size:15px;flex:1;min-width:0}
+.wo .typ{font:11px var(--mono);color:var(--tx4);text-transform:uppercase;letter-spacing:.08em}
+.wo .nums{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:9px}
+.wo .nums div{display:flex;flex-direction:column;gap:1px}
+.wo .nums b{font:600 17px/1.15 'Chakra Petch',sans-serif;font-feature-settings:'tnum'}
+.wo .nums b small{font-size:11px;color:var(--tx3);margin-left:2px;font-weight:500}
+.wo .nums i{font:normal 10.5px var(--mono);color:var(--tx4);text-transform:uppercase;letter-spacing:.06em}
+.wo .note{margin-top:9px;font-size:13px;color:var(--tx2);white-space:pre-wrap;line-height:1.45}
+.trs{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.trs .stat .n{font-size:28px}
+.wbars{display:flex;align-items:flex-end;gap:6px;height:120px;margin-top:14px}
+.wbars .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+.wbars .b .v{font:10.5px var(--mono);color:var(--tx3)}
+.wbars .b .wbar{width:100%;max-width:38px;background:#2a2a2a;border-radius:4px 4px 2px 2px;min-height:2px}
+.wbars .b.cur .wbar{background:var(--tx2)}
+.wbars .b .l{font:10px var(--mono);color:var(--tx4)}
+.bests{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.bests div{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.bests i{display:block;font:normal 10.5px var(--mono);color:var(--tx4);text-transform:uppercase;letter-spacing:.06em}
+.bests b{font:600 18px 'Chakra Petch',sans-serif;font-feature-settings:'tnum'}
+.bests small{display:block;font-size:11px;color:var(--tx3)}
+.mhd{font:11px var(--mono);color:var(--tx4);text-transform:uppercase;letter-spacing:.1em;margin:22px 0 2px}
+@media (max-width:700px){.trs{grid-template-columns:repeat(2,1fr)}.bests{grid-template-columns:repeat(2,1fr)}.wo .nums{gap:6px 14px}}
 .ftabs{display:flex;gap:4px;margin-bottom:22px;border-bottom:1px solid var(--line);overflow-x:auto}
 .ftabs span{padding:9px 14px;font-size:13.5px;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .ftabs span:hover{color:var(--tx)}
@@ -1376,6 +1410,114 @@ function renderMeals(){
     <div class="row" style="margin-top:16px;gap:8px"><span class="muted" style="font-size:12px">Tick a meal when you've eaten it. + adds, × removes.</span><span class="sp"></span><button class="btn sm" data-act="wp-save-tpl">Save as my standard week</button></div>`
   :`<div class="card" style="padding:26px"><p class="muted" style="margin-bottom:16px">No plan for this week yet.</p><div class="row">${tpl?'<button class="btn pri" data-act="wp-tpl">Use my standard week</button>':''}<button class="btn" data-act="wp-copy">Copy last week</button><button class="btn" data-act="wp-blank">Start blank</button></div></div>`}`;
 }
+/* ---------- training log ---------- */
+let trTab='today',trFilter='all';
+const WTYPES=[['swim','Swim'],['run','Run'],['gym','Gym'],['walk','Walk'],['cycle','Cycle'],['other','Other']];
+const WTNAME=Object.fromEntries(WTYPES);
+const hasDist=t=>t!=='gym';
+function woType(w){if(w.type)return w.type;const t=(w.text||'').toLowerCase();
+  return /swim|pool|lap/.test(t)?'swim':/run|jog|\dk\b/.test(t)?'run':/walk|hike/.test(t)?'walk':/cycl|bike|ride/.test(t)?'cycle':/gym|push|pull|leg|abs|lift|upper|lower|chest|back|arm|core|weights/.test(t)?'gym':'other'}
+function woSec(w){return w.sec||((w.mins||0)*60)}
+function parseDur(s){s=String(s||'').trim();if(!s)return 0;
+  if(/^\d+(\.\d+)?$/.test(s))return Math.round(parseFloat(s)*60);
+  const p=s.split(':').map(x=>parseInt(x,10)||0);
+  if(p.length===2)return p[0]*60+p[1];if(p.length===3)return p[0]*3600+p[1]*60+p[2];return 0}
+function woDur(sec,long){if(!sec)return '';const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;
+  if(long)return h?`${h}h ${m}m`:`${m}m`;
+  return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`}
+function fmtDist(km,t){if(!km)return '';return t==='swim'?`${Math.round(km*1000).toLocaleString()}<small>m</small>`:`${(+km.toFixed(2))}<small>km</small>`}
+function distTxt(km,t){if(!km)return '';return t==='swim'?`${Math.round(km*1000).toLocaleString()} m`:`${+km.toFixed(2)} km`}
+function paceOf(w){const t=woType(w),sec=woSec(w),km=w.km;if(!sec||!km)return null;
+  if(t==='swim'){const p=sec/(km*10);return{v:p,txt:woDur(Math.round(p)),u:'/100m',lbl:'Pace'}}
+  if(t==='cycle'){const v=km/(sec/3600);return{v:-v,txt:v.toFixed(1),u:'km/h',lbl:'Speed'}}
+  const p=sec/km;return{v:p,txt:woDur(Math.round(p)),u:'/km',lbl:'Pace'}}
+const FEELS=['Easy','Steady','Solid','Hard','All out'];
+function woTitle(w){return w.text||WTNAME[woType(w)]}
+function woCard(w,showDay){const t=woType(w),sec=woSec(w),pc=paceOf(w);
+  const n=[];
+  if(w.km)n.push([fmtDist(w.km,t),'Distance']);
+  if(sec)n.push([woDur(sec),'Time']);
+  if(pc)n.push([`${pc.txt}<small>${pc.u}</small>`,pc.lbl]);
+  if(w.kcal)n.push([`${w.kcal}<small>kcal</small>`,'Burned']);
+  if(w.hr)n.push([`${w.hr}<small>bpm</small>`,'Avg HR']);
+  if(w.hrMax)n.push([`${w.hrMax}<small>bpm</small>`,'Max HR']);
+  if(w.swolf)n.push([`${w.swolf}`,'SWOLF']);
+  if(w.feel)n.push([FEELS[w.feel-1],'Felt']);
+  return `<div class="wo" data-act="wo-edit" data-id="${w.id}"><div class="top"><span class="ttl">${esc(woTitle(w))}</span><span class="typ">${showDay?fmtShort(w.day)+' · ':''}${WTNAME[t]}</span></div>
+    ${n.length?`<div class="nums">${n.map(([v,l])=>`<div><b>${v}</b><i>${l}</i></div>`).join('')}</div>`:''}
+    ${w.notes?`<div class="note">${esc(w.notes)}</div>`:''}</div>`}
+function woModal(w,day,preset){
+  const isNew=!w;w=w||{};let type=w.id?woType(w):(preset||'swim'),feel=w.feel||0;
+  const sel='font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px';
+  modal(`<div class="eyebrow">${isNew?'Log training':'Edit training'}</div>
+    <div class="wtypes">${WTYPES.map(([k,l])=>`<span data-ty="${k}" class="${k===type?'on':''}">${l}</span>`).join('')}</div>
+    <input class="big" id="wm-t" placeholder="Title (optional)" value="${esc(w.text||'')}">
+    <div class="row"><label id="wm-dl">Distance<input id="wm-d" inputmode="decimal"></label><label>Time<input id="wm-s" placeholder="45:30 or 1:05:00" value="${woSec(w)?woDur(woSec(w)):''}"></label></div>
+    <div class="row"><label>Calories burned<input id="wm-k" inputmode="numeric" placeholder="kcal" value="${w.kcal||''}"></label><label>Avg HR<input id="wm-h" inputmode="numeric" placeholder="bpm" value="${w.hr||''}"></label><label>Max HR<input id="wm-hm" inputmode="numeric" placeholder="bpm" value="${w.hrMax||''}"></label></div>
+    <div class="row" id="wm-swr"><label>SWOLF<input id="wm-sw" inputmode="numeric" placeholder="optional" value="${w.swolf||''}"></label><label>Day<input type="date" id="wm-day" value="${w.day||day}"></label></div>
+    <label>How it felt<div class="feel">${FEELS.map((f,i)=>`<span data-f="${i+1}" class="${feel===i+1?'on':''}">${f}</span>`).join('')}</div></label>
+    <label>Notes<textarea id="wm-n" placeholder="">${esc(w.notes||'')}</textarea></label>
+    <div class="muted" id="wm-pace" style="font-size:12.5px;min-height:16px"></div>
+    <div class="row-end">${isNew?'':'<button class="ghost danger-t" data-a="del">Delete</button>'}<span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+    const D=$('#wm-d',d),S_=$('#wm-s',d);
+    const setDist=()=>{const km=w.km||0;D.value=km?(type==='swim'?Math.round(km*1000):+km.toFixed(2)):''};
+    const sync=()=>{d.querySelectorAll('.wtypes span').forEach(s=>s.classList.toggle('on',s.dataset.ty===type));
+      $('#wm-dl',d).style.display=hasDist(type)?'':'none';$('#wm-dl',d).firstChild.textContent=type==='swim'?'Distance (m)':'Distance (km)';
+      D.placeholder=type==='swim'?'e.g. 1500':'e.g. 5.2';$('#wm-sw',d).parentNode.style.display=type==='swim'?'':'none';
+      $('#wm-n',d).placeholder=type==='gym'?'Exercises, sets × reps, weights…':type==='swim'?'Strokes, sets, drills, how the pool was…':'How it went, route, splits…';
+      pace()};
+    const kmNow=()=>{const v=num(D.value);return hasDist(type)&&v?(type==='swim'?v/1000:v):0};
+    const pace=()=>{const pc=paceOf({type,km:kmNow(),sec:parseDur(S_.value)});$('#wm-pace',d).textContent=pc?`${pc.lbl}: ${pc.txt} ${pc.u}`:''};
+    setDist();sync();
+    d.querySelectorAll('.wtypes span').forEach(s=>s.onclick=()=>{const km=kmNow();type=s.dataset.ty;w.km=km;setDist();sync()});
+    d.querySelectorAll('.feel span').forEach(s=>s.onclick=()=>{const f=+s.dataset.f;feel=feel===f?0:f;d.querySelectorAll('.feel span').forEach(x=>x.classList.toggle('on',+x.dataset.f===feel))});
+    D.oninput=pace;S_.oninput=pace;
+    const save=()=>{const sec=parseDur(S_.value);
+      const rec={type,text:$('#wm-t',d).value.trim(),km:kmNow()||0,sec,mins:Math.round(sec/60),kcal:Math.round(num($('#wm-k',d).value))||0,
+        hr:Math.round(num($('#wm-h',d).value))||0,hrMax:Math.round(num($('#wm-hm',d).value))||0,swolf:type==='swim'?(Math.round(num($('#wm-sw',d).value))||0):0,
+        feel,notes:$('#wm-n',d).value.trim(),day:$('#wm-day',d).value||w.day||day};
+      close();if(isNew)store.put('workouts',uid(),{...rec,createdAt:Date.now()});else store.patch('workouts',w.id,rec)};
+    d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;
+    const dl=d.querySelector('[data-a=del]');if(dl)dl.onclick=()=>{close();store.del('workouts',w.id)};
+    d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}));
+  });
+}
+function trTabs(){return `<div class="ftabs">${[['today','Today'],['log','Training log']].map(([k,l])=>`<span class="${trTab===k?'on':''}" data-act="tr-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
+function weekStartKey(dd){const x=new Date(dd);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return dayKey(x)}
+function renderTrainLog(){
+  const all=S.workouts.slice().sort((a,b)=>b.day.localeCompare(a.day)||(b.createdAt||0)-(a.createdAt||0));
+  const types=WTYPES.filter(([k])=>all.some(w=>woType(w)===k));
+  if(trFilter!=='all'&&!types.some(([k])=>k===trFilter))trFilter='all';
+  const L=trFilter==='all'?all:all.filter(w=>woType(w)===trFilter);
+  const distOK=trFilter!=='all'&&hasDist(trFilter)&&trFilter!=='other';
+  const tk=todayKey(),wk=weekStartKey(new Date()),mk=tk.slice(0,7);
+  const sum=arr=>({n:arr.length,sec:arr.reduce((s,w)=>s+woSec(w),0),km:arr.reduce((s,w)=>s+(w.km||0),0),kcal:arr.reduce((s,w)=>s+(w.kcal||0),0)});
+  const W=sum(L.filter(w=>w.day>=wk&&w.day<=tk)),M=sum(L.filter(w=>w.day.slice(0,7)===mk)),A=sum(L);
+  const box=(lbl,o)=>`<div class="stat"><div class="eyebrow">${lbl}</div><div class="n">${o.n}<small>${o.n===1?'session':'sessions'}</small></div>
+    <div class="muted mono" style="font-size:12px;margin-top:6px;line-height:1.6">${[o.sec?woDur(o.sec,1):'',distOK&&o.km?distTxt(o.km,trFilter):'',o.kcal?o.kcal.toLocaleString()+' kcal':''].filter(Boolean).join(' · ')||'—'}</div></div>`;
+  // weekly bars: last 8 weeks
+  const weeks=[];for(let i=7;i>=0;i--){const st=weekStartKey(addDays(new Date(),-7*i)),en=dayKey(addDays(fromKey(st),6));const arr=L.filter(w=>w.day>=st&&w.day<=en);weeks.push({st,v:distOK?arr.reduce((s,w)=>s+(w.km||0),0):arr.reduce((s,w)=>s+woSec(w),0)/60,cur:i===0})}
+  const mx=Math.max(1,...weeks.map(x=>x.v));
+  const vtxt=v=>!v?'':distOK?(trFilter==='swim'?(v*1000>=1000?(v).toFixed(1)+'k':Math.round(v*1000)):(+v.toFixed(1))):(v>=60?(v/60).toFixed(1)+'h':Math.round(v)+'m');
+  const bars=`<div class="wbars">${weeks.map(x=>`<div class="b ${x.cur?'cur':''}"><span class="v">${vtxt(x.v)}</span><div class="wbar" style="height:${Math.round(x.v/mx*84)}px"></div><span class="l">${fmtShort(x.st)}</span></div>`).join('')}</div>`;
+  // bests
+  let bests='';
+  if(L.length){const b=[];const top=(f)=>L.filter(f.ok||(()=>true)).reduce((m,w)=>m&&f.val(m)>=f.val(w)?m:w,null);
+    if(distOK){const x=top({val:w=>w.km||0});if(x&&x.km)b.push(['Longest',distTxt(x.km,trFilter),x]);
+      const ps=L.filter(w=>paceOf(w)&&(trFilter==='swim'?w.km>=.1:w.km>=1));if(ps.length){const y=ps.reduce((m,w)=>paceOf(w).v<paceOf(m).v?w:m);const pc=paceOf(y);b.push([trFilter==='cycle'?'Fastest':'Best pace',`${pc.txt} ${pc.u}`,y])}}
+    const t=top({val:woSec});if(t&&woSec(t))b.push(['Longest time',woDur(woSec(t),1),t]);
+    const k=top({val:w=>w.kcal||0});if(k&&k.kcal)b.push(['Most burned',k.kcal+' kcal',k]);
+    if(b.length)bests=`<div class="card"><h2>Bests</h2><div class="bests">${b.map(([l,v,w])=>`<div style="cursor:pointer" data-act="wo-edit" data-id="${w.id}"><i>${l}</i><b>${v}</b><small>${fmtShort(w.day)} · ${esc(woTitle(w))}</small></div>`).join('')}</div></div>`}
+  // list grouped by month
+  let list='',curM='';
+  L.slice(0,200).forEach(w=>{const m=w.day.slice(0,7);if(m!==curM){curM=m;const d=fromKey(m+'-01');list+=`<div class="mhd">${MON[d.getMonth()]} ${d.getFullYear()}</div>`}list+=woCard(w,true)});
+  return `${trTabs()}
+    <div class="row" style="justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap"><div class="wtypes"><span class="${trFilter==='all'?'on':''}" data-act="tr-filter" data-t="all">All</span>${types.map(([k,l])=>`<span class="${trFilter===k?'on':''}" data-act="tr-filter" data-t="${k}">${l}</span>`).join('')}</div><button class="btn pri sm" data-act="wo-new" data-t="${trFilter==='all'?'':trFilter}">+ Log training</button></div>
+    <div class="trs">${box('This week',W)}${box('This month',M)}${box('All time',A)}<div class="stat"><div class="eyebrow">Avg / week</div><div class="n">${(()=>{const first=L.length?L[L.length-1].day:tk;const wks=Math.max(1,Math.ceil((fromKey(tk)-fromKey(weekStartKey(fromKey(first))))/(7*864e5)));return (L.length/wks).toFixed(1)})()}<small>sessions</small></div><div class="muted mono" style="font-size:12px;margin-top:6px">since first log</div></div></div>
+    <div class="card"><h2><span>Last 8 weeks</span><span class="muted mono" style="font-size:12px">${distOK?(trFilter==='swim'?'distance (m)':'distance (km)'):'time'}</span></h2>${bars}</div>
+    ${bests}
+    <div class="card"><h2><span>History</span><span class="muted mono" style="font-size:12px">${L.length} ${L.length===1?'session':'sessions'}</span></h2>${list||'<div class="empty">Nothing logged yet.</div>'}</div>`;
+}
 /* food tracking is switched off (FOOD_TRACKING=false); all its code is kept below for later */
 const FOOD_TRACKING=false;
 function renderTrainWeigh(){
@@ -1383,6 +1525,7 @@ function renderTrainWeigh(){
   if(!BF.handle&&mode!=='local')return renderBodyToday();
   const k=bDay(),tk=todayKey(),d=fromKey(k);
   const wos=S.workouts.filter(w=>w.day===k).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const lastByType=WTYPES.map(([t])=>S.workouts.filter(w=>woType(w)===t).sort((a,b)=>b.day.localeCompare(a.day)||(b.createdAt||0)-(a.createdAt||0))[0]).filter(Boolean);
   const recentWo=[...new Set(S.workouts.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(w=>w.text))].slice(0,6);
   const ws=S.weights.slice().sort((a,b)=>a.day.localeCompare(b.day));
   const last=ws[ws.length-1];
@@ -1394,15 +1537,15 @@ function renderTrainWeigh(){
     const pts=recentW.map((w,i)=>`${(i/(recentW.length-1)*100).toFixed(2)},${(46-((w.kg-mn)/rg)*40).toFixed(2)}`).join(' ');
     spark=`<svg class="spark" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#9a9a9a" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg><div class="row" style="justify-content:space-between;font:11px var(--mono);color:var(--tx4)"><span>${fmtShort(recentW[0].day)}</span><span>${mn}–${mx} kg</span><span>${fmtShort(recentW[recentW.length-1].day)}</span></div>`}
   const label=k===tk?'Today':k===dayKey(addDays(new Date(),-1))?'Yesterday':fmtDay(d);
-  const weekWo=[6,5,4,3,2,1,0].map(i=>{const dd=addDays(new Date(),-i),kk=dayKey(dd),w=S.workouts.filter(x=>x.day===kk);return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${dow(dd)}</span><span class="dot ${w.length?'on':''}"></span></div><div class="kv" style="color:var(--tx2);min-height:30px">${w.length?w.map(x=>esc(x.text)).join(', '):'&nbsp;'}</div></div>`}).join('');
+  const weekWo=[6,5,4,3,2,1,0].map(i=>{const dd=addDays(new Date(),-i),kk=dayKey(dd),w=S.workouts.filter(x=>x.day===kk);return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${dow(dd)}</span><span class="dot ${w.length?'on':''}"></span></div><div class="kv" style="color:var(--tx2);min-height:30px">${w.length?w.map(x=>esc(woTitle(x))).join(', '):'&nbsp;'}</div></div>`}).join('');
   const trained7=new Set(S.workouts.filter(x=>x.day>dayKey(addDays(new Date(),-7))&&x.day<=tk).map(x=>x.day)).size;
-  return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${label} <span style="color:var(--tx4);text-transform:none;letter-spacing:0">· ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${fmtDay(d)}</h1></div>
-    <div class="row"><div class="seg"><button class="icon-btn" data-act="body-prev">‹</button>${k!==tk?'<button class="btn sm" data-act="body-today">Today</button>':''}<button class="icon-btn" data-act="body-next" ${k>=tk?'disabled style="opacity:.3"':''}>›</button></div></div></div>
-  <div class="tgrid" style="align-items:start">
-      <div class="card"><h2>Training</h2>
-        <div class="qadd2"><input data-k="wo-text" data-hold data-enter="wo-add" placeholder="e.g. Push day, 5k run, abs"><input data-k="wo-min" data-hold data-enter="wo-add" inputmode="numeric" placeholder="Min"><button class="btn sm" data-act="wo-add">Add</button></div>
-        ${recentWo.length?`<div class="chips2">${recentWo.map(t=>`<span class="cbtn" data-act="wo-quick" data-text="${esc(t)}">${esc(t)}</span>`).join('')}</div>`:''}
-        ${wos.map(w=>`<div class="item"><span style="flex:1;cursor:pointer" data-act="wo-edit" data-id="${w.id}" title="Click to edit">${esc(w.text)}</span><span class="tag mono">${w.mins?w.mins+' min':''}</span><span class="x" data-act="wo-del" data-id="${w.id}">×</span></div>`).join('')||'<div class="empty">No training logged.</div>'}
+  const headTW=`<div class="head"><div class="l"><span class="eyebrow">Fitness · ${label} <span style="color:var(--tx4);text-transform:none;letter-spacing:0">· ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${fmtDay(d)}</h1></div>
+    <div class="row"><div class="seg"><button class="icon-btn" data-act="body-prev">‹</button>${k!==tk?'<button class="btn sm" data-act="body-today">Today</button>':''}<button class="icon-btn" data-act="body-next" ${k>=tk?'disabled style="opacity:.3"':''}>›</button></div></div></div>`;
+  if(trTab==='log')return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span><h1>Training log</h1></div></div>`+renderTrainLog();
+  return headTW+trTabs()+`  <div class="tgrid" style="align-items:start">
+      <div class="card"><h2><span>Training</span><button class="btn pri sm" data-act="wo-new">+ Log</button></h2>
+        ${lastByType.length?`<div class="chips2" style="margin-bottom:4px">${lastByType.map(w=>`<span class="cbtn" data-act="wo-again" data-id="${w.id}" title="Start from your last ${WTNAME[woType(w)]}">${WTNAME[woType(w)]}</span>`).join('')}</div>`:''}
+        ${wos.map(w=>woCard(w)).join('')||`<div class="empty">${k===tk?'Nothing logged today.':'Nothing logged this day.'}</div>`}
       </div>
       <div class="card"><h2><span>Weigh-in</span>${avg7?`<span class="muted mono" style="font-size:12px">7-day avg ${avg7} kg</span>`:''}</h2>
         <div class="qadd2"><input data-k="wt-kg" data-hold data-enter="wt-add" inputmode="decimal" placeholder="Weight in kg"><span></span><button class="btn sm" data-act="wt-add">Log</button></div>
@@ -1531,6 +1674,12 @@ function bodyAct(a,el){
       d.querySelector('[data-a=del]').onclick=()=>{close();store.del('food',f.id)};
       d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}));
     })}
+  else if(a==='wo-new'){woModal(null,k,el.dataset.t||undefined)}
+  else if(a==='wo-again'){const w=S.workouts.find(x=>x.id===el.dataset.id);if(!w)return;const {id,day,createdAt,feel,notes,...rest}=w;woModal(null,k,woType(w));
+    const d=$('#modal-root .dlg:last-child')||$('#modal-root .dlg');if(d){$('#wm-t',d).value=w.text||'';if(w.km){$('#wm-d',d).value=woType(w)==='swim'?Math.round(w.km*1000):+w.km.toFixed(2)}$('#wm-d',d).dispatchEvent(new Event('input'))}}
+  else if(a==='tr-tab'){trTab=el.dataset.t;render();const m=$('main');if(m)m.scrollTop=0;window.scrollTo&&window.scrollTo(0,0)}
+  else if(a==='tr-filter'){trFilter=el.dataset.t;render()}
+  else if(a==='wo-edit'&&!FOOD_TRACKING){const w=S.workouts.find(x=>x.id===el.dataset.id);if(w)woModal(w,k)}
   else if(a==='wo-edit'){const w=S.workouts.find(x=>x.id===el.dataset.id);if(!w)return;
     modal(`<div class="eyebrow">Edit training</div><input class="big" id="we-t" value="${esc(w.text)}" autofocus>
       <div class="row"><label>Minutes<input id="we-m" inputmode="numeric" value="${w.mins||''}"></label><label>Day<input type="date" id="we-d" value="${w.day}"></label></div>
@@ -1563,7 +1712,7 @@ function bodyAct(a,el){
       el2.querySelector('[data-a=c]').onclick=close;
       el2.querySelector('[data-a=s]').onclick=()=>{const p=Math.round(num($('#g-p',el2).value)),kc=Math.round(num($('#g-k',el2).value));if(p>0&&kc>0){store.bodySettings({targets:{protein:p,kcal:kc}});close()}}})}
 }
-const BODY_ACTS=['parts-toggle','food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
+const BODY_ACTS=['wo-new','wo-again','tr-tab','tr-filter','parts-toggle','food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
 /* plan */
 const fmtM=m=>pad(Math.floor(m/60)%24)+':'+pad(m%60);
 const planText=k=>((S.plans.find(p=>p.id===k)||{}).text)||'';
