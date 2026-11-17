@@ -442,6 +442,18 @@ button.eat{font:inherit;font-size:12.5px;padding:5px 14px}
 .msnack{font-size:11.5px}
 @media (hover:none){.mchip .cx,.mday .wpadd{opacity:1}}
 @media (max-width:980px){.mweek{grid-template-columns:1fr}.mday{border-left:0;border-top:1px solid var(--line);display:grid;grid-template-columns:64px 1fr;column-gap:10px}.mday:first-child{border-top:0}.mdh{flex-direction:column;justify-content:flex-start;align-self:start;gap:2px;grid-row:1/span 6}.mday .mslot{grid-column:2}.mchip{font-size:14px;padding:9px 10px}.mday .wpadd{opacity:1}}
+.ptog{color:var(--tx3);cursor:pointer;font-size:10px;padding:3px 2px 0;transition:transform .15s;display:inline-block}
+.ptog.open{transform:rotate(90deg)}.ptog:hover{color:var(--tx)}
+.fparts{margin:-2px 0 6px 26px;padding:4px 0 6px 12px;border-left:1px solid var(--line2);display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--tx2)}
+.fparts div{display:flex;justify-content:space-between;gap:10px}.fparts .mono{font-size:11.5px;color:var(--tx3)}
+.ph,.pr{display:grid;grid-template-columns:1fr 70px 70px 74px 18px;gap:6px;align-items:center}
+.ph{font:500 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--tx4);margin-bottom:-6px}
+.pr input{padding:7px 8px;font-size:13px}
+.wchip .chk{width:14px;height:14px;margin-top:1px;flex:none}
+.wchip.done{background:transparent}.wchip.done [data-act=meal-edit]{color:var(--tx3);text-decoration:line-through;text-decoration-color:var(--tx4)}
+.wchip.skipped{opacity:.4}
+.wchip{align-items:flex-start;gap:6px}
+@media (max-width:700px){.ph,.pr{grid-template-columns:1fr 54px 58px 60px 16px}}
 /* ---------- phone ---------- */
 .ns,.mhead{display:none}
 @media (hover:none){
@@ -1069,6 +1081,7 @@ const dayFood=k=>S.food.filter(f=>f.day===k&&!f.skipped);
 const sumP=a=>Math.round(a.filter(f=>!f.planned).reduce((s,f)=>s+(+f.protein||0),0));
 const sumAllP=a=>Math.round(a.reduce((s,f)=>s+(+f.protein||0),0));
 const sumAllK=a=>Math.round(a.reduce((s,f)=>s+(+f.kcal||0),0));
+const openParts=new Set();
 let foodMode='ate',foodMeal=null,foodCheat=false;
 const MEALS=[['breakfast','Breakfast'],['lunch','Lunch'],['dinner','Dinner'],['snacks','Snacks']];
 const mealOf=f=>MEALS.some(m=>m[0]===f.meal)?f.meal:'snacks';
@@ -1084,19 +1097,20 @@ const recById=id=>S.recipes.find(x=>x.id===id);
 const recSorted=()=>S.recipes.slice().sort((a,b)=>((a.order??1e9)-(b.order??1e9))||(a.name||'').localeCompare(b.name||''));
 const ingSorted=()=>S.ingredients.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
 const fmtQty=q=>{q=Math.round((+q||0)*1000)/1000;const w=Math.floor(q),f=Math.round((q-w)*100)/100;const m={0.25:'¼',0.5:'½',0.75:'¾',0.33:'⅓',0.67:'⅔'};const fs=f?(m[f]||String(f).replace(/^0/,'')):'';return ((w||!fs)?String(w):'')+fs};
-function recMacros(r){if(r&&r.protein!=null&&r.kcal!=null)return {p:Math.round(+r.protein||0),k:Math.round(+r.kcal||0)};let p=0,k=0;((r&&r.items)||[]).forEach(it=>{const g=ingById(it.ing);if(g){p+=(+g.protein||0)*it.qty;k+=(+g.kcal||0)*it.qty}});return {p:Math.round(p),k:Math.round(k)}}
-function recCost(r){if(r&&r.price!=null)return +r.price||0;let c=0;((r&&r.items)||[]).forEach(it=>{const g=ingById(it.ing);if(g&&+g.packSize)c+=(+g.packPrice||0)/(+g.packSize)*it.qty});return c}
+function mealParts(r){if(!r)return [];if(Array.isArray(r.parts))return r.parts;return (r.items||[]).map(it=>{const g=ingById(it.ing);if(!g)return null;return {name:`${fmtQty(it.qty)} ${g.short||g.name}`,protein:Math.round((+g.protein||0)*it.qty*10)/10,kcal:Math.round((+g.kcal||0)*it.qty),price:+g.packSize?Math.round((+g.packPrice||0)/(+g.packSize)*it.qty*100)/100:0}}).filter(Boolean)}
+function recMacros(r){if(r&&Array.isArray(r.parts)&&r.parts.length){let p=0,k=0;r.parts.forEach(x=>{p+=+x.protein||0;k+=+x.kcal||0});return {p:Math.round(p),k:Math.round(k)}}if(r&&r.protein!=null&&r.kcal!=null)return {p:Math.round(+r.protein||0),k:Math.round(+r.kcal||0)};let p=0,k=0;((r&&r.items)||[]).forEach(it=>{const g=ingById(it.ing);if(g){p+=(+g.protein||0)*it.qty;k+=(+g.kcal||0)*it.qty}});return {p:Math.round(p),k:Math.round(k)}}
+function recCost(r){if(r&&Array.isArray(r.parts)&&r.parts.length)return r.parts.reduce((s,x)=>s+(+x.price||0),0);if(r&&r.price!=null)return +r.price||0;let c=0;((r&&r.items)||[]).forEach(it=>{const g=ingById(it.ing);if(g&&+g.packSize)c+=(+g.packPrice||0)/(+g.packSize)*it.qty});return c}
 const wkKey=d=>dayKey(weekStart(d));
 const weekPlanDoc=wk=>S.weekplans.find(w=>w.id===wk);
 function dayPlan(k){const d=fromKey(k),wp=weekPlanDoc(wkKey(d));if(!wp)return [];const day=(wp.days||{})[DKEYS[(d.getDay()+6)%7]]||{};const out=[];MEALS.forEach(([s])=>(day[s]||[]).forEach((rid,i)=>out.push({slot:s,recId:rid,i,ref:`${k}|${s}|${i}`})));return out}
 const eatenOf=ref=>S.food.find(f=>f.planRef===ref);
 function adjustStock(r,sign){const st={...((S.bodySettings||{}).stock||{})};((r&&r.items)||[]).forEach(it=>{st[it.ing]=Math.round(((+st[it.ing]||0)+sign*it.qty)*1000)/1000});store.bodySettings({stock:st})}
 const planName=rid=>{const r=recById(rid);return r?r.name:String(rid||'').startsWith('txt:')?String(rid).slice(4):'Meal'};
-function eatPlanned(it,day){if(eatenOf(it.ref))return;const r=recById(it.recId),m=r?recMacros(r):{p:0,k:0};store.put('food',uid(),{day,name:planName(it.recId),protein:m.p,kcal:m.k,meal:it.slot,planRef:it.ref,...(r?{recId:r.id}:{}),createdAt:Date.now()});}
+function eatPlanned(it,day){if(eatenOf(it.ref))return;const r=recById(it.recId),m=r?recMacros(r):{p:0,k:0};store.put('food',uid(),{day,name:planName(it.recId),protein:m.p,kcal:m.k,meal:it.slot,planRef:it.ref,parts:mealParts(r).map(x=>({name:x.name,protein:x.protein,kcal:x.kcal})),...(r?{recId:r.id}:{}),createdAt:Date.now()});}
 function uneat(entry){store.del('food',entry.id)}
 function weekScore(wk){let plan=0,ate=0;const tk=todayKey();for(let i=0;i<7;i++){const k=dayKey(addDays(fromKey(wk),i));if(k>tk)break;dayPlan(k).forEach(it=>{plan++;if(eatenOf(it.ref))ate++})}return {plan,ate}}
-function virtualPlanned(k){return dayPlan(k).filter(it=>!S.food.some(f=>f.planRef===it.ref)).map((it,n)=>{const r=recById(it.recId),m=recMacros(r);return {id:'v:'+it.ref,day:k,name:planName(it.recId),protein:m.p,kcal:m.k,planned:true,meal:it.slot,virtual:true,ref:it.ref,recId:it.recId,order:-1+n/100,createdAt:0}})}
-function realizeVirtual(id,patch){const k=id.slice(2).split('|')[0],v=virtualPlanned(k).find(x=>x.id===id);if(!v)return null;const nid=uid();store.put('food',nid,{day:v.day,name:v.name,protein:v.protein,kcal:v.kcal,planned:true,meal:v.meal,planRef:v.ref,...(recById(v.recId)?{recId:v.recId}:{}),createdAt:Date.now(),...(patch||{})});return nid}
+function virtualPlanned(k){return dayPlan(k).filter(it=>!S.food.some(f=>f.planRef===it.ref)).map((it,n)=>{const r=recById(it.recId),m=recMacros(r);return {id:'v:'+it.ref,day:k,name:planName(it.recId),protein:m.p,kcal:m.k,parts:mealParts(r).map(x=>({name:x.name,protein:x.protein,kcal:x.kcal})),planned:true,meal:it.slot,virtual:true,ref:it.ref,recId:it.recId,order:-1+n/100,createdAt:0}})}
+function realizeVirtual(id,patch){const k=id.slice(2).split('|')[0],v=virtualPlanned(k).find(x=>x.id===id);if(!v)return null;const nid=uid();store.put('food',nid,{day:v.day,name:v.name,protein:v.protein,kcal:v.kcal,parts:v.parts,planned:true,meal:v.meal,planRef:v.ref,...(recById(v.recId)?{recId:v.recId}:{}),createdAt:Date.now(),...(patch||{})});return nid}
 const emptyDays=()=>Object.fromEntries(DKEYS.map(d=>[d,{breakfast:[],lunch:[],dinner:[],snacks:[]}]));
 const cloneDays=d=>JSON.parse(JSON.stringify(d||emptyDays()));
 function fitTabs(){return `<div class="ftabs">${[['today','Today'],['plan','Week plan']].map(([k,l])=>`<span class="${fitTab===k?'on':''}" data-act="fit-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
@@ -1122,7 +1136,7 @@ function renderWeekPlan(){
   const days=wp?wp.days:null,showN=true;
   let cost=0;
   const dayTot=DKEYS.map(dk=>{let p=0,kc=0;MEALS.forEach(([s])=>((days&&days[dk]&&days[dk][s])||[]).forEach(rid=>{const r=recById(rid);const m=recMacros(r);p+=m.p;kc+=m.k;cost+=recCost(r)}));return {p,kc}});
-  const chip=(dk,s,rid,i)=>{const r=recById(rid);return `<span class="wchip" draggable="true" data-chip="${dk}|${s}|${i}"><span data-act="meal-edit" data-id="${esc(rid)}" style="cursor:pointer;flex:1" title="Edit this meal">${esc(planName(rid))}</span><span class="cx" data-act="wp-del" data-dk="${dk}" data-s="${s}" data-i="${i}" title="Remove">×</span></span>`};
+  const chip=(dk,s,rid,i)=>{const r=recById(rid),k=dayKey(addDays(ws,DKEYS.indexOf(dk))),e=eatenOf(`${k}|${s}|${i}`),ate=e&&!e.planned&&!e.skipped;return `<span class="wchip ${ate?'done':''} ${e&&e.skipped?'skipped':''}" draggable="true" data-chip="${dk}|${s}|${i}">${k<=tk?`<span class="chk ${ate?'on':''}" data-act="wp-log" data-dk="${dk}" data-s="${s}" data-i="${i}" title="${ate?'Logged: tap to undo':'Log as eaten'}"></span>`:''}<span data-act="meal-edit" data-id="${esc(rid)}" style="cursor:pointer;flex:1" title="Edit this meal">${esc(planName(rid))}</span><span class="cx" data-act="wp-del" data-dk="${dk}" data-s="${s}" data-i="${i}" title="Remove">×</span></span>`};
   const cell=(dk,s)=>`<div class="wpcell" data-dk="${dk}" data-s="${s}">${((days&&days[dk]&&days[dk][s])||[]).map((rid,i)=>chip(dk,s,rid,i)).join('')}<span class="wpadd" data-act="wp-add" data-dk="${dk}" data-s="${s}" title="Add a meal">+</span></div>`;
   const mobile=window.innerWidth<=700;
   let grid;
@@ -1135,10 +1149,10 @@ function renderWeekPlan(){
     <div class="row"><div class="seg"><button class="icon-btn" data-act="wp-prev">‹</button>${planWkOff!==0?'<button class="btn sm" data-act="wp-now">This week</button>':''}<button class="icon-btn" data-act="wp-next">›</button></div></div></div>
   ${grid}
   ${wp?`<div class="row" style="margin-top:16px;gap:8px"><span class="muted mono" style="font-size:12px">≈ ${fmt$(cost)} of food this week</span><span class="sp"></span>${tpl?'<button class="btn sm" data-act="wp-tpl">Reset to standard week</button>':''}<button class="btn sm" data-act="wp-save-tpl">Save as my standard week</button><button class="ghost danger-t" data-act="wp-clear">Clear week</button></div>
-  <div class="muted" style="font-size:12px;margin-top:10px">${mobile?'Tap + to add a meal, × to remove it, or tap a meal to edit it.':'Drag meals between days, + to add, × to remove, click a meal to edit it.'} Planned meals show up in Today's food log, ready to tick off.</div>`:''}
+  <div class="muted" style="font-size:12px;margin-top:10px">${mobile?'Tick a meal to log it to that day, tap its name to edit what’s in it, × to remove.':'Tick a meal to log it to that day, click its name to edit what’s in it, drag to move, × to remove.'} Planned meals show up in Today's food log, ready to tick off.</div>`:''}
   <div class="card" style="margin-top:22px"><h2><span>Your meals</span><span class="ghost" style="padding:0 6px" data-act="meal-new">+ New meal</span></h2>
-    ${recSorted().map(r=>{const m=recMacros(r);return `<div class="item ev" data-act="meal-edit" data-id="${r.id}"><span style="flex:1">${esc(r.name)}</span><span class="tag mono">${m.p}g · ${m.k} kcal · ${fmt$(recCost(r))}</span></div>`}).join('')||'<div class="empty">No meals yet.</div>'}
-    <div class="muted" style="font-size:12px;margin-top:8px">Click a meal to rename it or fix its protein, calories or price. Changes apply wherever it's planned.</div></div>`;
+    ${recSorted().map(r=>{const m=recMacros(r);return `<div class="item ev" data-act="meal-edit" data-id="${r.id}"><span style="flex:1">${esc(r.name)}<span class="muted" style="font-size:12px"> · ${mealParts(r).map(x=>esc(x.name)).join(', ')}</span></span><span class="tag mono">${m.p}g · ${m.k} kcal · ${fmt$(recCost(r))}</span></div>`}).join('')||'<div class="empty">No meals yet.</div>'}
+    <div class="muted" style="font-size:12px;margin-top:8px">Click a meal to rename it and edit what's in it: each item has its own protein, calories and price.</div></div>`;
 }
 
 function needFor(w,fromToday){const n={},tk=todayKey();for(let i=0;i<7;i++){const k=dayKey(addDays(fromKey(w),i));if(fromToday&&k<tk)continue;dayPlan(k).forEach(it=>{if(eatenOf(it.ref))return;const r=recById(it.recId);((r&&r.items)||[]).forEach(x=>{n[x.ing]=(n[x.ing]||0)+x.qty})})}return n}
@@ -1191,18 +1205,28 @@ function renderFoods(){
 }
 
 function mealModal(r,onCreate){
-  const m=r?recMacros(r):{p:'',k:''},pr=r?recCost(r):'';
+  const parts=JSON.parse(JSON.stringify(mealParts(r)));
+  if(!parts.length)parts.push({name:'',protein:'',kcal:'',price:''});
   modal(`<div class="eyebrow">${r?'Edit meal':'New meal'}</div><input class="big" id="me2-n" value="${esc(r?r.name:'')}" placeholder="e.g. Chicken bowl" autofocus>
-    <div class="row"><label>Protein (g)<input id="me2-p" inputmode="decimal" value="${m.p}"></label><label>Calories<input id="me2-k" inputmode="numeric" value="${m.k}"></label><label>Price (${esc(cur())})<input id="me2-c" inputmode="decimal" value="${r?(+pr).toFixed(2):''}"></label></div>
-    <div class="muted" style="font-size:12px">${r?'Changes apply everywhere this meal is planned. Meals you\u2019ve already ticked off keep their old numbers.':'You can drop it into any day once it\u2019s saved.'}</div>
+    <div class="ph"><span>What's in it</span><span>Protein g</span><span>kcal</span><span>Price</span><span></span></div>
+    <div id="me2-rows" style="display:flex;flex-direction:column;gap:6px"></div>
+    <div class="row"><button class="ghost" id="me2-add">+ Add item</button><span class="sp"></span><span id="me2-tot" class="mono muted" style="font-size:12px"></span></div>
+    <div class="muted" style="font-size:12px">${r?'Changes apply everywhere this meal is planned. Meals you\u2019ve already logged keep their old numbers.':'Once saved, add it to any day from the week plan.'}</div>
     <div class="row-end">${r?'<button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span>':''}<button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+    const read=()=>d.querySelectorAll('[data-pr]').forEach(row=>{const n=+row.dataset.pr;parts[n]={name:row.querySelector('[data-f=name]').value,protein:row.querySelector('[data-f=protein]').value,kcal:row.querySelector('[data-f=kcal]').value,price:row.querySelector('[data-f=price]').value}});
+    const tot=()=>{read();let p=0,k=0,c=0;parts.forEach(x=>{p+=num(x.protein);k+=num(x.kcal);c+=num(x.price)});$('#me2-tot',d).textContent=`${Math.round(p)}g · ${Math.round(k)} kcal · ${fmt$(c)}`};
+    const draw=()=>{$('#me2-rows',d).innerHTML=parts.map((x,n)=>`<div class="pr" data-pr="${n}"><input data-f="name" value="${esc(x.name)}" placeholder="e.g. ½ chicken"><input data-f="protein" inputmode="decimal" value="${esc(x.protein)}"><input data-f="kcal" inputmode="numeric" value="${esc(x.kcal)}"><input data-f="price" inputmode="decimal" value="${x.price===''?'':esc((+x.price||0).toFixed(2))}"><span class="x" style="opacity:1" data-rm="${n}">×</span></div>`).join('');
+      d.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{read();parts.splice(+b.dataset.rm,1);draw()});d.querySelectorAll('.pr input').forEach(i=>i.addEventListener('input',tot));tot()};
+    draw();
+    $('#me2-add',d).onclick=()=>{read();parts.push({name:'',protein:'',kcal:'',price:''});draw();const ins=d.querySelectorAll('.pr [data-f=name]');ins[ins.length-1].focus()};
     d.querySelector('[data-a=c]').onclick=close;
     const del=d.querySelector('[data-a=del]');if(del)del.onclick=async()=>{if(await confirmBox(`Delete \u201c${r.name}\u201d? It'll also come out of your week plans.`)){close();store.del('recipes',r.id)}};
-    const save=()=>{const name=$('#me2-n',d).value.trim();if(!name){toast('Give the meal a name');return}const id=r?r.id:uid();close();
-      store.put('recipes',id,{...(r||{}),name,protein:num($('#me2-p',d).value),kcal:Math.round(num($('#me2-k',d).value)),price:Math.round(num($('#me2-c',d).value)*100)/100,createdAt:r?r.createdAt:Date.now()});
+    d.querySelector('[data-a=s]').onclick=()=>{read();const name=$('#me2-n',d).value.trim();if(!name){toast('Give the meal a name');return}
+      const ps=parts.filter(x=>String(x.name).trim()||num(x.protein)||num(x.kcal)).map(x=>({name:String(x.name).trim()||'Item',protein:num(x.protein),kcal:Math.round(num(x.kcal)),price:Math.round(num(x.price)*100)/100}));
+      const id=r?r.id:uid();close();
+      store.put('recipes',id,{name,parts:ps,protein:Math.round(ps.reduce((s,x)=>s+x.protein,0)),kcal:ps.reduce((s,x)=>s+x.kcal,0),price:Math.round(ps.reduce((s,x)=>s+x.price,0)*100)/100,order:r?r.order:undefined,createdAt:r?r.createdAt:Date.now()});
       if(!r&&onCreate)onCreate(id)};
-    d.querySelector('[data-a=s]').onclick=save;d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}));
-  });
+  },true);
 }
 const selStyle='font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%';
 function recModal(r){
@@ -1271,6 +1295,11 @@ function fitAct(a,el){
   if(a==='wp-blank'){saveDays(emptyDays());return}
   if(a==='wp-save-tpl'){if(!wp)return;store.bodySettings({template:cloneDays(wp.days)});toast('Saved as your standard week');return}
   if(a==='wp-clear'){confirmBox('Clear every meal from this week’s plan?','Clear').then(ok=>{if(ok)store.del('weekplans',wk)});return}
+  if(a==='wp-log'){const k=dayKey(addDays(ws,DKEYS.indexOf(ds.dk)));if(k>todayKey())return;const ref=`${k}|${ds.s}|${ds.i}`,e=eatenOf(ref);
+    if(e&&!e.planned&&!e.skipped){store.del('food',e.id);return}
+    if(e&&!e.skipped){store.patch('food',e.id,{planned:false});toast('Logged');return}
+    if(e&&e.skipped)store.del('food',e.id);
+    const rid=((wp&&wp.days[ds.dk]&&wp.days[ds.dk][ds.s])||[])[+ds.i];if(rid){eatPlanned({slot:ds.s,recId:rid,i:+ds.i,ref},k);toast(`Logged ${planName(rid)} to ${k===todayKey()?'today':fmtShort(k)}`)}return}
   if(a==='wp-tick'){const k=dayKey(addDays(ws,DKEYS.indexOf(ds.dk)));if(k>todayKey())return;const ref=`${k}|${ds.s}|${ds.i}`,e=eatenOf(ref);if(e){uneat(e);return}const day=(wp&&wp.days[ds.dk])||{};const rid=(day[ds.s]||[])[+ds.i];if(rid)eatPlanned({slot:ds.s,recId:rid,i:+ds.i,ref},k);return}
   if(a==='wp-del'){if(!wp)return;const days=cloneDays(wp.days);days[ds.dk][ds.s].splice(+ds.i,1);saveDays(days);return}
   if(a==='wp-add'){const recs=recSorted();const used=new Set();S.weekplans.forEach(w=>Object.values(w.days||{}).forEach(dd=>Object.values(dd||{}).forEach(arr=>(arr||[]).forEach(x=>{if(String(x).startsWith('txt:'))used.add(x)}))));
@@ -1319,7 +1348,7 @@ function fitAct(a,el){
   if(a==='ing-edit'){const g=ingById(ds.id);if(g)ingModal(g);return}
 }
 const fmtNum=n=>String(Math.round(n*1000)/1000);
-const FIT_ACTS=['meal-new','meal-edit','fit-tab','fit-nums','fit-extra','plan-eat','plan-uneat','plan-eat-all','wp-tick','wp-prev','wp-next','wp-now','wp-tpl','wp-copy','wp-blank','wp-save-tpl','wp-clear','wp-del','wp-add','gr-prev','gr-next','gr-now','gr-got','gr-inc','gr-dec','gr-stock-edit','gr-done','rec-new','rec-edit','ing-new','ing-edit'];
+const FIT_ACTS=['wp-log','meal-new','meal-edit','fit-tab','fit-nums','fit-extra','plan-eat','plan-uneat','plan-eat-all','wp-tick','wp-prev','wp-next','wp-now','wp-tpl','wp-copy','wp-blank','wp-save-tpl','wp-clear','wp-del','wp-add','gr-prev','gr-next','gr-now','gr-got','gr-inc','gr-dec','gr-stock-edit','gr-done','rec-new','rec-edit','ing-new','ing-edit'];
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.gp)return;const gwk=dayKey(addDays(weekStart(new Date()),7*shopWkOff));setShopRow(gwk,t.dataset.gp,{price:Math.round(num(t.value)*100)/100})});
 /* drag meals between days in the week plan (mouse) */
 document.addEventListener('dragstart',e=>{const c=e.target.closest&&e.target.closest('.wchip');if(!c)return;dragChip=c.dataset.chip;try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragChip)}catch(_){}});
@@ -1396,7 +1425,7 @@ function renderBodyToday(){
 
       ${!isFut&&foods.filter(f=>f.planned).length>1?`<div style="text-align:right;margin:-4px 0 6px"><span class="eat" data-act="food-eat-all">✓ Ate all planned</span></div>`:''}
       ${MEALS.map(([mk,ml])=>{const fs=foods.filter(f=>mealOf(f)===mk);return `<div class="fsec" data-meal="${mk}"><div class="fsec-h"><span>${ml}</span><span class="row" style="gap:10px">${fs.length?`<span class="mono muted" style="font-size:11.5px;text-transform:none;letter-spacing:0">${sumAllP(fs)}g · ${sumAllK(fs)} kcal</span>`:''}<span class="ghost" style="padding:0 4px" data-act="food-meal" data-m="${mk}" title="Add to ${ml.toLowerCase()}">+</span></span></div>
-        ${fs.map(f=>`<div class="item fitem ${f.planned?'planned':''}" data-fid="${f.id}"><span class="grip" title="Drag to reorder or move to another meal">⋮⋮</span><span style="flex:1;cursor:pointer" data-act="food-edit" data-id="${f.id}" title="Click to edit">${esc(f.name)}${(f.cheat?'<span class="pl-badge">cheat</span>':'')+(f.planned?'<span class="pl-badge">planned</span>':'')}</span>${f.planned&&!isFut?`<span class="eat" data-act="food-eat" data-id="${f.id}" title="Mark as eaten">✓ Ate it</span>`:''}<span class="tag mono" style="cursor:pointer" data-act="food-edit" data-id="${f.id}">${f.protein}g · ${f.kcal} kcal</span><span class="x" data-act="food-del" data-id="${f.id}">×</span></div>`).join('')||'<div class="fempty">—</div>'}</div>`}).join('')}
+        ${fs.map(f=>{const hp=Array.isArray(f.parts)&&f.parts.length,op=hp&&openParts.has(f.id);return `<div class="item fitem ${f.planned?'planned':''}" data-fid="${f.id}"><span class="grip" title="Drag to reorder or move to another meal">⋮⋮</span>${hp?`<span class="ptog ${op?'open':''}" data-act="parts-toggle" data-id="${f.id}" title="Show what's in it">▸</span>`:''}<span style="flex:1;cursor:pointer" data-act="food-edit" data-id="${f.id}" title="Click to edit">${esc(f.name)}${(f.cheat?'<span class="pl-badge">cheat</span>':'')+(f.planned?'<span class="pl-badge">planned</span>':'')}</span>${f.planned&&!isFut?`<span class="eat" data-act="food-eat" data-id="${f.id}" title="Mark as eaten">✓ Ate it</span>`:''}<span class="tag mono" style="cursor:pointer" data-act="food-edit" data-id="${f.id}">${f.protein}g · ${f.kcal} kcal</span><span class="x" data-act="food-del" data-id="${f.id}">×</span></div>${op?`<div class="fparts">${f.parts.map(x=>`<div><span>${esc(x.name)}</span><span class="mono">${Math.round((+x.protein||0)*10)/10}g · ${Math.round(+x.kcal||0)} kcal</span></div>`).join('')}</div>`:''}`}).join('')||'<div class="fempty">—</div>'}</div>`}).join('')}
       ${foods.length?'':`<div class="empty" style="margin-top:6px">${isFut?'Nothing planned yet. Add meals here or tap a usual meal, or tell Claude what you plan to eat.':`Nothing logged${k===tk?' yet today':''}. Add it here, or just tell Claude what you ate.`}</div>`}
     </div>
     <div class="bcol">
@@ -1486,6 +1515,7 @@ function bodyAct(a,el){
     if(!name&&!pv&&!kv){n.focus();return}const day=dd.value||k;n.value='';p.value='';kc.value='';
     store.put('food',uid(),{day,name:name||'Cheat meal',protein:pv,kcal:Math.round(kv),cheat:true,planned:day>todayKey(),meal:day===k?curMeal(k):'dinner',createdAt:Date.now()});
     toast(`Logged for ${day===todayKey()?'today':fmtShort(day)}`)}
+  else if(a==='parts-toggle'){const id=el.dataset.id;openParts.has(id)?openParts.delete(id):openParts.add(id);render()}
   else if(a==='food-mode'){foodMode=el.dataset.m==='plan'?'plan':'ate';render()}
   else if(a==='food-eat'){store.patch('food',el.dataset.id,{planned:false,createdAt:Date.now()})}
   else if(a==='food-eat-all'){dayFood(k).filter(f=>f.planned).forEach(f=>store.patch('food',f.id,{planned:false}));virtualPlanned(k).forEach(v=>realizeVirtual(v.id,{planned:false}))}
@@ -1496,7 +1526,7 @@ function bodyAct(a,el){
       el2.querySelector('[data-a=c]').onclick=close;
       el2.querySelector('[data-a=s]').onclick=()=>{const p=Math.round(num($('#g-p',el2).value)),kc=Math.round(num($('#g-k',el2).value));if(p>0&&kc>0){store.bodySettings({targets:{protein:p,kcal:kc}});close()}}})}
 }
-const BODY_ACTS=['food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
+const BODY_ACTS=['parts-toggle','food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
 /* plan */
 const fmtM=m=>pad(Math.floor(m/60)%24)+':'+pad(m%60);
 const planText=k=>((S.plans.find(p=>p.id===k)||{}).text)||'';
