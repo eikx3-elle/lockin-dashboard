@@ -424,6 +424,24 @@ button.eat{font:inherit;font-size:12.5px;padding:5px 14px}
 .grp .mono{font-size:11.5px;color:var(--tx3)}
 @media (hover:none){.wchip .cx,.wpadd{opacity:1}}
 @media (max-width:700px){.gr{grid-template-columns:22px 1fr auto}.grp{grid-column:2/-1;flex-direction:row;justify-content:space-between;align-items:center}.pslot{width:64px}}
+.mweek{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.mday{border-left:1px solid var(--line);padding:12px 10px 10px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.mday:first-child{border-left:0}
+.mday.today{background:var(--s1)}
+.mday.past .mdh .wdate{color:var(--tx4)}
+.mdh{display:flex;justify-content:space-between;align-items:baseline}
+.mslot{display:flex;flex-direction:column;gap:5px}
+.msl{font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--tx4)}
+.mchip{display:flex;align-items:flex-start;gap:8px;background:var(--s3);border:1px solid var(--line2);border-radius:8px;padding:7px 8px;font-size:12.5px}
+.mchip .chk{margin-top:1px}
+.mchip .mn{flex:1;word-break:break-word}
+.mchip.done{background:transparent}
+.mchip.done .mn{color:var(--tx3);text-decoration:line-through;text-decoration-color:var(--tx4)}
+.mchip .cx{color:var(--tx4);cursor:pointer;opacity:0}.mchip:hover .cx{opacity:1}.mchip .cx:hover{color:var(--tx)}
+.mday .wpadd{text-align:left;padding:2px 4px}.mday:hover .wpadd{opacity:1}
+.msnack{font-size:11.5px}
+@media (hover:none){.mchip .cx,.mday .wpadd{opacity:1}}
+@media (max-width:980px){.mweek{grid-template-columns:1fr}.mday{border-left:0;border-top:1px solid var(--line);display:grid;grid-template-columns:64px 1fr;column-gap:10px}.mday:first-child{border-top:0}.mdh{flex-direction:column;justify-content:flex-start;align-self:start;gap:2px;grid-row:1/span 6}.mday .mslot{grid-column:2}.mchip{font-size:14px;padding:9px 10px}.mday .wpadd{opacity:1}}
 /* ---------- phone ---------- */
 .ns,.mhead{display:none}
 @media (hover:none){
@@ -1073,7 +1091,8 @@ const weekPlanDoc=wk=>S.weekplans.find(w=>w.id===wk);
 function dayPlan(k){const d=fromKey(k),wp=weekPlanDoc(wkKey(d));if(!wp)return [];const day=(wp.days||{})[DKEYS[(d.getDay()+6)%7]]||{};const out=[];MEALS.forEach(([s])=>(day[s]||[]).forEach((rid,i)=>out.push({slot:s,recId:rid,i,ref:`${k}|${s}|${i}`})));return out}
 const eatenOf=ref=>S.food.find(f=>f.planRef===ref);
 function adjustStock(r,sign){const st={...((S.bodySettings||{}).stock||{})};((r&&r.items)||[]).forEach(it=>{st[it.ing]=Math.round(((+st[it.ing]||0)+sign*it.qty)*1000)/1000});store.bodySettings({stock:st})}
-function eatPlanned(it,day){if(eatenOf(it.ref))return;const r=recById(it.recId);if(!r)return;const m=recMacros(r);store.put('food',uid(),{day,name:r.name,protein:m.p,kcal:m.k,meal:it.slot,planRef:it.ref,recId:r.id,createdAt:Date.now()});adjustStock(r,-1)}
+const planName=rid=>{const r=recById(rid);return r?r.name:String(rid||'').startsWith('txt:')?String(rid).slice(4):'Meal'};
+function eatPlanned(it,day){if(eatenOf(it.ref))return;const r=recById(it.recId),m=r?recMacros(r):{p:0,k:0};store.put('food',uid(),{day,name:planName(it.recId),protein:m.p,kcal:m.k,meal:it.slot,planRef:it.ref,...(r?{recId:r.id}:{}),createdAt:Date.now()});if(r)adjustStock(r,-1)}
 function uneat(entry){const r=recById(entry.recId);if(r)adjustStock(r,1);store.del('food',entry.id)}
 function weekScore(wk){let plan=0,ate=0;const tk=todayKey();for(let i=0;i<7;i++){const k=dayKey(addDays(fromKey(wk),i));if(k>tk)break;dayPlan(k).forEach(it=>{plan++;if(eatenOf(it.ref))ate++})}return {plan,ate}}
 const emptyDays=()=>Object.fromEntries(DKEYS.map(d=>[d,{breakfast:[],lunch:[],dinner:[],snacks:[]}]));
@@ -1233,11 +1252,19 @@ function fitAct(a,el){
   if(a==='wp-blank'){saveDays(emptyDays());return}
   if(a==='wp-save-tpl'){if(!wp)return;store.bodySettings({template:cloneDays(wp.days)});toast('Saved as your standard week');return}
   if(a==='wp-clear'){confirmBox('Clear every meal from this week’s plan?','Clear').then(ok=>{if(ok)store.del('weekplans',wk)});return}
+  if(a==='wp-tick'){const k=dayKey(addDays(ws,DKEYS.indexOf(ds.dk)));if(k>todayKey())return;const ref=`${k}|${ds.s}|${ds.i}`,e=eatenOf(ref);if(e){uneat(e);return}const day=(wp&&wp.days[ds.dk])||{};const rid=(day[ds.s]||[])[+ds.i];if(rid)eatPlanned({slot:ds.s,recId:rid,i:+ds.i,ref},k);return}
   if(a==='wp-del'){if(!wp)return;const days=cloneDays(wp.days);days[ds.dk][ds.s].splice(+ds.i,1);saveDays(days);return}
-  if(a==='wp-add'){const recs=recSorted();if(!recs.length){toast('Make a meal in Foods first');fitTab='foods';render();return}
-    modal(`<div class="eyebrow">Add to ${DOW[DKEYS.indexOf(ds.dk)]} · ${(MEALS.find(m=>m[0]===ds.s)||[,''])[1]}</div>${recs.map(r=>{const m=recMacros(r);return `<div class="item ev" data-pick="${r.id}"><span style="flex:1">${esc(r.name)}</span><span class="tag mono">${m.p}g · ${m.k} kcal</span></div>`}).join('')}<div class="row-end"><button class="btn" data-a="c">Cancel</button></div>`,(d,close)=>{
+  if(a==='wp-add'){const recs=recSorted();const used=new Set();S.weekplans.forEach(w=>Object.values(w.days||{}).forEach(dd=>Object.values(dd||{}).forEach(arr=>(arr||[]).forEach(x=>{if(String(x).startsWith('txt:'))used.add(x)}))));
+    const opts=[...recs.map(r=>({id:r.id,name:r.name})),...[...used].map(x=>({id:x,name:x.slice(4)}))];
+    const add=rid=>{const cur=weekPlanDoc(wk);const days=cloneDays(cur?cur.days:null);days[ds.dk][ds.s].push(rid);saveDays(days)};
+    modal(`<div class="eyebrow">Add to ${DOW[DKEYS.indexOf(ds.dk)]} · ${(MEALS.find(m=>m[0]===ds.s)||[,''])[1]}</div>
+      ${opts.map(o=>`<div class="item ev" data-pick="${esc(o.id)}"><span style="flex:1">${esc(o.name)}</span></div>`).join('')}
+      <div class="row" style="flex-wrap:nowrap"><input id="wa-n" placeholder="Or type a meal, e.g. Chicken wrap" autocomplete="off"><button class="btn" data-a="s">Add</button></div>
+      <div class="row-end"><button class="btn" data-a="c">Cancel</button></div>`,(d,close)=>{
       d.querySelector('[data-a=c]').onclick=close;
-      d.querySelectorAll('[data-pick]').forEach(p=>p.onclick=()=>{close();const cur=weekPlanDoc(wk);const days=cloneDays(cur?cur.days:null);days[ds.dk][ds.s].push(p.dataset.pick);saveDays(days)});
+      d.querySelectorAll('[data-pick]').forEach(p=>p.onclick=()=>{close();add(p.dataset.pick)});
+      const typed=()=>{const n=$('#wa-n',d).value.trim();if(!n)return;close();const r=recs.find(x=>x.name.toLowerCase()===n.toLowerCase());add(r?r.id:'txt:'+n)};
+      d.querySelector('[data-a=s]').onclick=typed;$('#wa-n',d).addEventListener('keydown',e=>{if(e.key==='Enter')typed()});
     });return}
   /* groceries */
   const gws=addDays(weekStart(new Date()),7*shopWkOff),gwk=dayKey(gws);
@@ -1272,7 +1299,7 @@ function fitAct(a,el){
   if(a==='ing-edit'){const g=ingById(ds.id);if(g)ingModal(g);return}
 }
 const fmtNum=n=>String(Math.round(n*1000)/1000);
-const FIT_ACTS=['fit-tab','fit-nums','fit-extra','plan-eat','plan-uneat','plan-eat-all','wp-prev','wp-next','wp-now','wp-tpl','wp-copy','wp-blank','wp-save-tpl','wp-clear','wp-del','wp-add','gr-prev','gr-next','gr-now','gr-got','gr-inc','gr-dec','gr-stock-edit','gr-done','rec-new','rec-edit','ing-new','ing-edit'];
+const FIT_ACTS=['fit-tab','fit-nums','fit-extra','plan-eat','plan-uneat','plan-eat-all','wp-tick','wp-prev','wp-next','wp-now','wp-tpl','wp-copy','wp-blank','wp-save-tpl','wp-clear','wp-del','wp-add','gr-prev','gr-next','gr-now','gr-got','gr-inc','gr-dec','gr-stock-edit','gr-done','rec-new','rec-edit','ing-new','ing-edit'];
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.gp)return;const gwk=dayKey(addDays(weekStart(new Date()),7*shopWkOff));setShopRow(gwk,t.dataset.gp,{price:Math.round(num(t.value)*100)/100})});
 /* drag meals between days in the week plan (mouse) */
 document.addEventListener('dragstart',e=>{const c=e.target.closest&&e.target.closest('.wchip');if(!c)return;dragChip=c.dataset.chip;try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragChip)}catch(_){}});
@@ -1283,7 +1310,25 @@ document.addEventListener('drop',e=>{if(!dragChip)return;const c=e.target.closes
 document.addEventListener('dragend',()=>{if(!dragChip&&!document.querySelector('.wpcell.drop-in'))return;dragChip=null;document.querySelectorAll('.wpcell.drop-in').forEach(x=>x.classList.remove('drop-in'))});
 let _lastMobile=window.innerWidth<=700;window.addEventListener('resize',()=>{const m=window.innerWidth<=700;if(m!==_lastMobile){_lastMobile=m;if(view==='body')render()}});
 
+function renderMeals(){
+  const ws=addDays(weekStart(new Date()),7*planWkOff),wk=dayKey(ws),we=addDays(ws,6),wp=weekPlanDoc(wk),tpl=(S.bodySettings||{}).template,tk=todayKey();
+  const label=planWkOff===0?'This week':planWkOff===1?'Next week':planWkOff===-1?'Last week':'Week of '+fmtShort(wk);
+  let total=0,ate=0;
+  const chip=(dk,i,s,rid,n)=>{const k=dayKey(addDays(ws,i)),ref=`${k}|${s}|${n}`,e=eatenOf(ref),can=k<=tk;if(can){total++;if(e)ate++}
+    return `<div class="mchip ${e?'done':''}">${can?`<span class="chk ${e?'on':''}" data-act="wp-tick" data-dk="${dk}" data-s="${s}" data-i="${n}"></span>`:''}<span class="mn">${esc(planName(rid))}</span><span class="cx" data-act="wp-del" data-dk="${dk}" data-s="${s}" data-i="${n}" title="Remove">×</span></div>`};
+  const days=wp?wp.days:null;
+  const dayHtml=DKEYS.map((dk,i)=>{const dd=addDays(ws,i),k=dayKey(dd),slots=MEALS.filter(([s])=>s!=='snacks'||((days&&days[dk]&&days[dk].snacks)||[]).length);
+    return `<div class="mday ${k===tk?'today':''} ${k<tk?'past':''}"><div class="mdh"><span class="eyebrow">${k===tk?'Today':DOW[i]}</span><span class="wdate">${dd.getDate()}</span></div>
+      ${slots.map(([s,l])=>`<div class="mslot"><div class="msl">${l}</div>${((days&&days[dk]&&days[dk][s])||[]).map((rid,n)=>chip(dk,i,s,rid,n)).join('')}<span class="wpadd" data-act="wp-add" data-dk="${dk}" data-s="${s}" title="Add a meal">+</span></div>`).join('')}
+      ${!slots.some(x=>x[0]==='snacks')?`<div class="mslot"><span class="wpadd msnack" data-act="wp-add" data-dk="${dk}" data-s="snacks">+ snack</span></div>`:''}</div>`}).join('');
+  return `<div class="head"><div class="l"><span class="eyebrow">Meals · ${label}</span><h1>${ws.getDate()} ${MON[ws.getMonth()]} – ${we.getDate()} ${MON[we.getMonth()]}</h1></div>
+    <div class="row">${wp&&total?`<span class="mono muted" style="font-size:12.5px">${ate}/${total} eaten</span>`:''}<div class="seg"><button class="icon-btn" data-act="wp-prev">‹</button>${planWkOff!==0?'<button class="btn sm" data-act="wp-now">This week</button>':''}<button class="icon-btn" data-act="wp-next">›</button></div></div></div>
+  ${wp?`<div class="mweek">${dayHtml}</div>
+    <div class="row" style="margin-top:16px;gap:8px"><span class="muted" style="font-size:12px">Tick a meal when you've eaten it. + adds, × removes.</span><span class="sp"></span><button class="btn sm" data-act="wp-save-tpl">Save as my standard week</button></div>`
+  :`<div class="card" style="padding:26px"><p class="muted" style="margin-bottom:16px">No plan for this week yet.</p><div class="row">${tpl?'<button class="btn pri" data-act="wp-tpl">Use my standard week</button>':''}<button class="btn" data-act="wp-copy">Copy last week</button><button class="btn" data-act="wp-blank">Start blank</button></div></div>`}`;
+}
 function renderBody(){const BF=FILES.body;if(!BF.handle&&mode!=='local')return renderBodyToday();
+  return renderMeals();
   return fitTabs()+(fitTab==='plan'?renderWeekPlan():fitTab==='groceries'?renderGroceries():fitTab==='foods'?renderFoods():renderBodyToday());}
 function renderBodyToday(){
   const BF=FILES.body;
