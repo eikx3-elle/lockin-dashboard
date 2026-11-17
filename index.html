@@ -1412,11 +1412,17 @@ function renderMeals(){
 }
 /* ---------- training log ---------- */
 let trTab='today',trFilter='all';
-const WTYPES=[['swim','Swim'],['run','Run'],['gym','Gym'],['walk','Walk'],['cycle','Cycle'],['other','Other']];
-const WTNAME=Object.fromEntries(WTYPES);
-const hasDist=t=>t!=='gym';
+const WT_DEFAULT=[{id:'swim',name:'Swim',unit:'m'},{id:'run',name:'Run',unit:'km'},{id:'gym',name:'Gym',unit:'none'},{id:'walk',name:'Walk',unit:'km'},{id:'cycle',name:'Cycle',unit:'kmh'},{id:'other',name:'Other',unit:'km'}];
+const WT_UNITS=[['none','No distance'],['m','Metres'],['km','Km · pace'],['kmh','Km · speed']];
+const wtList=()=>{const l=(S.bodySettings||{}).wtypes;return Array.isArray(l)&&l.length?l:WT_DEFAULT};
+const wtGet=t=>wtList().find(x=>x.id===t);
+const wtName=t=>{const x=wtGet(t);return x?x.name:(WT_DEFAULT.find(y=>y.id===t)||{name:'Other'}).name};
+const unitOf=t=>{const x=wtGet(t)||WT_DEFAULT.find(y=>y.id===t);return x?x.unit:'km'};
+const isM=t=>unitOf(t)==='m';
+const hasDist=t=>unitOf(t)!=='none';
 function woType(w){if(w.type)return w.type;const t=(w.text||'').toLowerCase();
-  return /swim|pool|lap/.test(t)?'swim':/run|jog|\dk\b/.test(t)?'run':/walk|hike/.test(t)?'walk':/cycl|bike|ride/.test(t)?'cycle':/gym|push|pull|leg|abs|lift|upper|lower|chest|back|arm|core|weights/.test(t)?'gym':'other'}
+  const g=woGuess(t),L=wtList();return L.some(x=>x.id===g)?g:(L.some(x=>x.id==='other')?'other':L[L.length-1].id)}
+function woGuess(t){return /swim|pool|lap/.test(t)?'swim':/run|jog|\dk\b/.test(t)?'run':/walk|hike/.test(t)?'walk':/cycl|bike|ride/.test(t)?'cycle':/gym|push|pull|leg|abs|lift|upper|lower|chest|back|arm|core|weights/.test(t)?'gym':'other'}
 function woSec(w){return w.sec||((w.mins||0)*60)}
 function parseDur(s){s=String(s||'').trim();if(!s)return 0;
   if(/^\d+(\.\d+)?$/.test(s))return Math.round(parseFloat(s)*60);
@@ -1425,14 +1431,14 @@ function parseDur(s){s=String(s||'').trim();if(!s)return 0;
 function woDur(sec,long){if(!sec)return '';const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;
   if(long)return h?`${h}h ${m}m`:`${m}m`;
   return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`}
-function fmtDist(km,t){if(!km)return '';return t==='swim'?`${Math.round(km*1000).toLocaleString()}<small>m</small>`:`${(+km.toFixed(2))}<small>km</small>`}
-function distTxt(km,t){if(!km)return '';return t==='swim'?`${Math.round(km*1000).toLocaleString()} m`:`${+km.toFixed(2)} km`}
-function paceOf(w){const t=woType(w),sec=woSec(w),km=w.km;if(!sec||!km)return null;
-  if(t==='swim'){const p=sec/(km*10);return{v:p,txt:woDur(Math.round(p)),u:'/100m',lbl:'Pace'}}
-  if(t==='cycle'){const v=km/(sec/3600);return{v:-v,txt:v.toFixed(1),u:'km/h',lbl:'Speed'}}
+function fmtDist(km,t){if(!km)return '';return isM(t)?`${Math.round(km*1000).toLocaleString()}<small>m</small>`:`${(+km.toFixed(2))}<small>km</small>`}
+function distTxt(km,t){if(!km)return '';return isM(t)?`${Math.round(km*1000).toLocaleString()} m`:`${+km.toFixed(2)} km`}
+function paceOf(w){const t=woType(w),u=unitOf(t),sec=woSec(w),km=w.km;if(!sec||!km||u==='none')return null;
+  if(u==='m'){const p=sec/(km*10);return{v:p,txt:woDur(Math.round(p)),u:'/100m',lbl:'Pace'}}
+  if(u==='kmh'){const v=km/(sec/3600);return{v:-v,txt:v.toFixed(1),u:'km/h',lbl:'Speed'}}
   const p=sec/km;return{v:p,txt:woDur(Math.round(p)),u:'/km',lbl:'Pace'}}
 const FEELS=['Easy','Steady','Solid','Hard','All out'];
-function woTitle(w){return w.text||WTNAME[woType(w)]}
+function woTitle(w){return w.text||wtName(woType(w))}
 function woCard(w,showDay){const t=woType(w),sec=woSec(w),pc=paceOf(w);
   const n=[];
   if(w.km)n.push([fmtDist(w.km,t),'Distance']);
@@ -1443,14 +1449,14 @@ function woCard(w,showDay){const t=woType(w),sec=woSec(w),pc=paceOf(w);
   if(w.hrMax)n.push([`${w.hrMax}<small>bpm</small>`,'Max HR']);
   if(w.swolf)n.push([`${w.swolf}`,'SWOLF']);
   if(w.feel)n.push([FEELS[w.feel-1],'Felt']);
-  return `<div class="wo" data-act="wo-edit" data-id="${w.id}"><div class="top"><span class="ttl">${esc(woTitle(w))}</span><span class="typ">${showDay?fmtShort(w.day)+' · ':''}${WTNAME[t]}</span></div>
+  return `<div class="wo" data-act="wo-edit" data-id="${w.id}"><div class="top"><span class="ttl">${esc(woTitle(w))}</span><span class="typ">${showDay?fmtShort(w.day)+' · ':''}${esc(wtName(t))}</span></div>
     ${n.length?`<div class="nums">${n.map(([v,l])=>`<div><b>${v}</b><i>${l}</i></div>`).join('')}</div>`:''}
     ${w.notes?`<div class="note">${esc(w.notes)}</div>`:''}</div>`}
 function woModal(w,day,preset){
-  const isNew=!w;w=w||{};let type=w.id?woType(w):(preset||'swim'),feel=w.feel||0;
+  const isNew=!w;w=w||{};let type=w.id?woType(w):(preset&&wtGet(preset)?preset:wtList()[0].id),feel=w.feel||0;
   const sel='font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px';
   modal(`<div class="eyebrow">${isNew?'Log training':'Edit training'}</div>
-    <div class="wtypes">${WTYPES.map(([k,l])=>`<span data-ty="${k}" class="${k===type?'on':''}">${l}</span>`).join('')}</div>
+    <div class="wtypes">${wtList().map(x=>`<span data-ty="${x.id}" class="${x.id===type?'on':''}">${esc(x.name)}</span>`).join('')}${w.id&&!wtGet(type)?`<span data-ty="${type}" class="on">${esc(wtName(type))}</span>`:''}<span data-act="wt-types" style="border-style:dashed" title="Add, rename or remove types">Edit</span></div>
     <input class="big" id="wm-t" placeholder="Title (optional)" value="${esc(w.text||'')}">
     <div class="row"><label id="wm-dl">Distance<input id="wm-d" inputmode="decimal"></label><label>Time<input id="wm-s" placeholder="45:30 or 1:05:00" value="${woSec(w)?woDur(woSec(w)):''}"></label></div>
     <div class="row"><label>Calories burned<input id="wm-k" inputmode="numeric" placeholder="kcal" value="${w.kcal||''}"></label><label>Avg HR<input id="wm-h" inputmode="numeric" placeholder="bpm" value="${w.hr||''}"></label><label>Max HR<input id="wm-hm" inputmode="numeric" placeholder="bpm" value="${w.hrMax||''}"></label></div>
@@ -1460,21 +1466,22 @@ function woModal(w,day,preset){
     <div class="muted" id="wm-pace" style="font-size:12.5px;min-height:16px"></div>
     <div class="row-end">${isNew?'':'<button class="ghost danger-t" data-a="del">Delete</button>'}<span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
     const D=$('#wm-d',d),S_=$('#wm-s',d);
-    const setDist=()=>{const km=w.km||0;D.value=km?(type==='swim'?Math.round(km*1000):+km.toFixed(2)):''};
-    const sync=()=>{d.querySelectorAll('.wtypes span').forEach(s=>s.classList.toggle('on',s.dataset.ty===type));
-      $('#wm-dl',d).style.display=hasDist(type)?'':'none';$('#wm-dl',d).firstChild.textContent=type==='swim'?'Distance (m)':'Distance (km)';
-      D.placeholder=type==='swim'?'e.g. 1500':'e.g. 5.2';$('#wm-sw',d).parentNode.style.display=type==='swim'?'':'none';
-      $('#wm-n',d).placeholder=type==='gym'?'Exercises, sets × reps, weights…':type==='swim'?'Strokes, sets, drills, how the pool was…':'How it went, route, splits…';
+    const setDist=()=>{const km=w.km||0;D.value=km?(isM(type)?Math.round(km*1000):+km.toFixed(2)):''};
+    const sync=()=>{d.querySelectorAll('.wtypes span[data-ty]').forEach(s=>s.classList.toggle('on',s.dataset.ty===type));
+      $('#wm-dl',d).style.display=hasDist(type)?'':'none';$('#wm-dl',d).firstChild.textContent=isM(type)?'Distance (m)':'Distance (km)';
+      D.placeholder=isM(type)?'e.g. 1500':'e.g. 5.2';$('#wm-sw',d).parentNode.style.display=isM(type)?'':'none';
+      $('#wm-n',d).placeholder=!hasDist(type)?'Exercises, sets × reps, weights…':isM(type)?'Strokes, sets, drills, how the pool was…':'How it went, route, splits…';
       pace()};
-    const kmNow=()=>{const v=num(D.value);return hasDist(type)&&v?(type==='swim'?v/1000:v):0};
+    const kmNow=()=>{const v=num(D.value);return hasDist(type)&&v?(isM(type)?v/1000:v):0};
     const pace=()=>{const pc=paceOf({type,km:kmNow(),sec:parseDur(S_.value)});$('#wm-pace',d).textContent=pc?`${pc.lbl}: ${pc.txt} ${pc.u}`:''};
     setDist();sync();
-    d.querySelectorAll('.wtypes span').forEach(s=>s.onclick=()=>{const km=kmNow();type=s.dataset.ty;w.km=km;setDist();sync()});
+    d.querySelectorAll('.wtypes span[data-ty]').forEach(s=>s.onclick=()=>{const km=kmNow();type=s.dataset.ty;w.km=km;setDist();sync()});
     d.querySelectorAll('.feel span').forEach(s=>s.onclick=()=>{const f=+s.dataset.f;feel=feel===f?0:f;d.querySelectorAll('.feel span').forEach(x=>x.classList.toggle('on',+x.dataset.f===feel))});
     D.oninput=pace;S_.oninput=pace;
+    const et=d.querySelector('.wtypes [data-act=wt-types]');if(et)et.onclick=e=>{e.stopPropagation();close();wtModal()};
     const save=()=>{const sec=parseDur(S_.value);
       const rec={type,text:$('#wm-t',d).value.trim(),km:kmNow()||0,sec,mins:Math.round(sec/60),kcal:Math.round(num($('#wm-k',d).value))||0,
-        hr:Math.round(num($('#wm-h',d).value))||0,hrMax:Math.round(num($('#wm-hm',d).value))||0,swolf:type==='swim'?(Math.round(num($('#wm-sw',d).value))||0):0,
+        hr:Math.round(num($('#wm-h',d).value))||0,hrMax:Math.round(num($('#wm-hm',d).value))||0,swolf:isM(type)?(Math.round(num($('#wm-sw',d).value))||0):0,
         feel,notes:$('#wm-n',d).value.trim(),day:$('#wm-day',d).value||w.day||day};
       close();if(isNew)store.put('workouts',uid(),{...rec,createdAt:Date.now()});else store.patch('workouts',w.id,rec)};
     d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;
@@ -1482,14 +1489,51 @@ function woModal(w,day,preset){
     d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}));
   });
 }
+function wtModal(){
+  let L=wtList().map(x=>({...x}));
+  const sel='font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 8px;flex:1;min-width:0';
+  modal(`<div class="eyebrow">Training types</div><div id="wt-rows" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="btn sm" data-a="add" style="align-self:flex-start">+ Add type</button>
+    <div class="muted" style="font-size:12px;line-height:1.5">Metres shows pace per 100m (and SWOLF). Km · pace shows min/km. Km · speed shows km/h. Removing a type moves its sessions to another type.</div>
+    <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+    const rows=$('#wt-rows',d);
+    const draw=()=>{rows.innerHTML=L.map((x,i)=>`<div class="row" style="gap:6px;flex-wrap:nowrap" data-i="${i}">
+      <input data-f="name" value="${esc(x.name)}" placeholder="Name" style="flex:1.1;min-width:0">
+      <select data-f="unit" style="${sel}">${WT_UNITS.map(([u,l])=>`<option value="${u}" ${x.unit===u?'selected':''}>${l}</option>`).join('')}</select>
+      <button class="icon-btn" data-m="-1" ${i===0?'disabled style="opacity:.3"':''}>↑</button><button class="icon-btn" data-m="1" ${i===L.length-1?'disabled style="opacity:.3"':''}>↓</button>
+      <button class="icon-btn" data-del title="Remove">×</button></div>`).join('');
+      rows.querySelectorAll('[data-i]').forEach(r=>{const i=+r.dataset.i;
+        r.querySelector('[data-f=name]').oninput=e=>L[i].name=e.target.value;
+        r.querySelector('[data-f=unit]').onchange=e=>L[i].unit=e.target.value;
+        r.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const j=i+ +b.dataset.m;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];draw()});
+        r.querySelector('[data-del]').onclick=()=>{if(L.length<=1){toast('Keep at least one type');return}L.splice(i,1);draw()};});};
+    draw();
+    d.querySelector('[data-a=add]').onclick=()=>{L.push({id:'t'+uid(),name:'',unit:'km'});draw();const ins=rows.querySelectorAll('[data-f=name]');ins[ins.length-1].focus()};
+    d.querySelector('[data-a=c]').onclick=close;
+    d.querySelector('[data-a=s]').onclick=async()=>{
+      const clean=L.map(x=>({id:x.id,name:(x.name||'').trim(),unit:x.unit})).filter(x=>x.name);
+      if(!clean.length){toast('Keep at least one type');return}
+      const ids=new Set(clean.map(x=>x.id));
+      const orphans=S.workouts.filter(w=>!ids.has(woTypeIn(w,clean)));
+      if(orphans.length){const to=clean.find(x=>x.id==='other')||clean[clean.length-1];
+        close();if(!await confirmBox(`${orphans.length} ${orphans.length===1?'session uses':'sessions use'} a type you removed. Move ${orphans.length===1?'it':'them'} to “${to.name}”?`,'Move & save'))return;
+        orphans.forEach(w=>store.patch('workouts',w.id,{type:to.id}));}
+      else close();
+      // lock in the guessed type on old entries so renaming/reordering never reshuffles them
+      S.workouts.filter(w=>!w.type&&!orphans.includes(w)).forEach(w=>store.patch('workouts',w.id,{type:woType(w)}));
+      store.bodySettings({wtypes:clean});
+    };
+  });
+}
+function woTypeIn(w,list){if(w.type)return w.type;const g=woGuess((w.text||'').toLowerCase());return list.some(x=>x.id===g)?g:(list.some(x=>x.id==='other')?'other':list[list.length-1].id)}
 function trTabs(){return `<div class="ftabs">${[['today','Today'],['log','Training log']].map(([k,l])=>`<span class="${trTab===k?'on':''}" data-act="tr-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
 function weekStartKey(dd){const x=new Date(dd);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return dayKey(x)}
 function renderTrainLog(){
   const all=S.workouts.slice().sort((a,b)=>b.day.localeCompare(a.day)||(b.createdAt||0)-(a.createdAt||0));
-  const types=WTYPES.filter(([k])=>all.some(w=>woType(w)===k));
+  const used=[...new Set(all.map(woType))];const types=[...wtList().filter(x=>used.includes(x.id)).map(x=>[x.id,x.name]),...used.filter(t=>!wtGet(t)).map(t=>[t,wtName(t)])];
   if(trFilter!=='all'&&!types.some(([k])=>k===trFilter))trFilter='all';
   const L=trFilter==='all'?all:all.filter(w=>woType(w)===trFilter);
-  const distOK=trFilter!=='all'&&hasDist(trFilter)&&trFilter!=='other';
+  const distOK=trFilter!=='all'&&hasDist(trFilter);
   const tk=todayKey(),wk=weekStartKey(new Date()),mk=tk.slice(0,7);
   const sum=arr=>({n:arr.length,sec:arr.reduce((s,w)=>s+woSec(w),0),km:arr.reduce((s,w)=>s+(w.km||0),0),kcal:arr.reduce((s,w)=>s+(w.kcal||0),0)});
   const W=sum(L.filter(w=>w.day>=wk&&w.day<=tk)),M=sum(L.filter(w=>w.day.slice(0,7)===mk)),A=sum(L);
@@ -1498,13 +1542,13 @@ function renderTrainLog(){
   // weekly bars: last 8 weeks
   const weeks=[];for(let i=7;i>=0;i--){const st=weekStartKey(addDays(new Date(),-7*i)),en=dayKey(addDays(fromKey(st),6));const arr=L.filter(w=>w.day>=st&&w.day<=en);weeks.push({st,v:distOK?arr.reduce((s,w)=>s+(w.km||0),0):arr.reduce((s,w)=>s+woSec(w),0)/60,cur:i===0})}
   const mx=Math.max(1,...weeks.map(x=>x.v));
-  const vtxt=v=>!v?'':distOK?(trFilter==='swim'?(v*1000>=1000?(v).toFixed(1)+'k':Math.round(v*1000)):(+v.toFixed(1))):(v>=60?(v/60).toFixed(1)+'h':Math.round(v)+'m');
+  const vtxt=v=>!v?'':distOK?(isM(trFilter)?(v*1000>=1000?(v).toFixed(1)+'k':Math.round(v*1000)):(+v.toFixed(1))):(v>=60?(v/60).toFixed(1)+'h':Math.round(v)+'m');
   const bars=`<div class="wbars">${weeks.map(x=>`<div class="b ${x.cur?'cur':''}"><span class="v">${vtxt(x.v)}</span><div class="wbar" style="height:${Math.round(x.v/mx*84)}px"></div><span class="l">${fmtShort(x.st)}</span></div>`).join('')}</div>`;
   // bests
   let bests='';
   if(L.length){const b=[];const top=(f)=>L.filter(f.ok||(()=>true)).reduce((m,w)=>m&&f.val(m)>=f.val(w)?m:w,null);
     if(distOK){const x=top({val:w=>w.km||0});if(x&&x.km)b.push(['Longest',distTxt(x.km,trFilter),x]);
-      const ps=L.filter(w=>paceOf(w)&&(trFilter==='swim'?w.km>=.1:w.km>=1));if(ps.length){const y=ps.reduce((m,w)=>paceOf(w).v<paceOf(m).v?w:m);const pc=paceOf(y);b.push([trFilter==='cycle'?'Fastest':'Best pace',`${pc.txt} ${pc.u}`,y])}}
+      const ps=L.filter(w=>paceOf(w)&&(isM(trFilter)?w.km>=.1:w.km>=1));if(ps.length){const y=ps.reduce((m,w)=>paceOf(w).v<paceOf(m).v?w:m);const pc=paceOf(y);b.push([unitOf(trFilter)==='kmh'?'Fastest':'Best pace',`${pc.txt} ${pc.u}`,y])}}
     const t=top({val:woSec});if(t&&woSec(t))b.push(['Longest time',woDur(woSec(t),1),t]);
     const k=top({val:w=>w.kcal||0});if(k&&k.kcal)b.push(['Most burned',k.kcal+' kcal',k]);
     if(b.length)bests=`<div class="card"><h2>Bests</h2><div class="bests">${b.map(([l,v,w])=>`<div style="cursor:pointer" data-act="wo-edit" data-id="${w.id}"><i>${l}</i><b>${v}</b><small>${fmtShort(w.day)} · ${esc(woTitle(w))}</small></div>`).join('')}</div></div>`}
@@ -1512,9 +1556,9 @@ function renderTrainLog(){
   let list='',curM='';
   L.slice(0,200).forEach(w=>{const m=w.day.slice(0,7);if(m!==curM){curM=m;const d=fromKey(m+'-01');list+=`<div class="mhd">${MON[d.getMonth()]} ${d.getFullYear()}</div>`}list+=woCard(w,true)});
   return `${trTabs()}
-    <div class="row" style="justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap"><div class="wtypes"><span class="${trFilter==='all'?'on':''}" data-act="tr-filter" data-t="all">All</span>${types.map(([k,l])=>`<span class="${trFilter===k?'on':''}" data-act="tr-filter" data-t="${k}">${l}</span>`).join('')}</div><button class="btn pri sm" data-act="wo-new" data-t="${trFilter==='all'?'':trFilter}">+ Log training</button></div>
+    <div class="row" style="justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap"><div class="wtypes"><span class="${trFilter==='all'?'on':''}" data-act="tr-filter" data-t="all">All</span>${types.map(([k,l])=>`<span class="${trFilter===k?'on':''}" data-act="tr-filter" data-t="${k}">${esc(l)}</span>`).join('')}<span data-act="wt-types" style="border-style:dashed">Edit types</span></div><button class="btn pri sm" data-act="wo-new" data-t="${trFilter==='all'?'':trFilter}">+ Log training</button></div>
     <div class="trs">${box('This week',W)}${box('This month',M)}${box('All time',A)}<div class="stat"><div class="eyebrow">Avg / week</div><div class="n">${(()=>{const first=L.length?L[L.length-1].day:tk;const wks=Math.max(1,Math.ceil((fromKey(tk)-fromKey(weekStartKey(fromKey(first))))/(7*864e5)));return (L.length/wks).toFixed(1)})()}<small>sessions</small></div><div class="muted mono" style="font-size:12px;margin-top:6px">since first log</div></div></div>
-    <div class="card"><h2><span>Last 8 weeks</span><span class="muted mono" style="font-size:12px">${distOK?(trFilter==='swim'?'distance (m)':'distance (km)'):'time'}</span></h2>${bars}</div>
+    <div class="card"><h2><span>Last 8 weeks</span><span class="muted mono" style="font-size:12px">${distOK?(isM(trFilter)?'distance (m)':'distance (km)'):'time'}</span></h2>${bars}</div>
     ${bests}
     <div class="card"><h2><span>History</span><span class="muted mono" style="font-size:12px">${L.length} ${L.length===1?'session':'sessions'}</span></h2>${list||'<div class="empty">Nothing logged yet.</div>'}</div>`;
 }
@@ -1525,7 +1569,7 @@ function renderTrainWeigh(){
   if(!BF.handle&&mode!=='local')return renderBodyToday();
   const k=bDay(),tk=todayKey(),d=fromKey(k);
   const wos=S.workouts.filter(w=>w.day===k).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
-  const lastByType=WTYPES.map(([t])=>S.workouts.filter(w=>woType(w)===t).sort((a,b)=>b.day.localeCompare(a.day)||(b.createdAt||0)-(a.createdAt||0))[0]).filter(Boolean);
+  const lastByType=wtList().map(({id:t})=>S.workouts.filter(w=>woType(w)===t).sort((a,b)=>b.day.localeCompare(a.day)||(b.createdAt||0)-(a.createdAt||0))[0]).filter(Boolean);
   const recentWo=[...new Set(S.workouts.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(w=>w.text))].slice(0,6);
   const ws=S.weights.slice().sort((a,b)=>a.day.localeCompare(b.day));
   const last=ws[ws.length-1];
@@ -1544,7 +1588,7 @@ function renderTrainWeigh(){
   if(trTab==='log')return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span><h1>Training log</h1></div></div>`+renderTrainLog();
   return headTW+trTabs()+`  <div class="tgrid" style="align-items:start">
       <div class="card"><h2><span>Training</span><button class="btn pri sm" data-act="wo-new">+ Log</button></h2>
-        ${lastByType.length?`<div class="chips2" style="margin-bottom:4px">${lastByType.map(w=>`<span class="cbtn" data-act="wo-again" data-id="${w.id}" title="Start from your last ${WTNAME[woType(w)]}">${WTNAME[woType(w)]}</span>`).join('')}</div>`:''}
+        ${lastByType.length?`<div class="chips2" style="margin-bottom:4px">${lastByType.map(w=>`<span class="cbtn" data-act="wo-again" data-id="${w.id}" title="Start from your last ${esc(wtName(woType(w)))}">${esc(wtName(woType(w)))}</span>`).join('')}</div>`:''}
         ${wos.map(w=>woCard(w)).join('')||`<div class="empty">${k===tk?'Nothing logged today.':'Nothing logged this day.'}</div>`}
       </div>
       <div class="card"><h2><span>Weigh-in</span>${avg7?`<span class="muted mono" style="font-size:12px">7-day avg ${avg7} kg</span>`:''}</h2>
@@ -1676,8 +1720,9 @@ function bodyAct(a,el){
     })}
   else if(a==='wo-new'){woModal(null,k,el.dataset.t||undefined)}
   else if(a==='wo-again'){const w=S.workouts.find(x=>x.id===el.dataset.id);if(!w)return;const {id,day,createdAt,feel,notes,...rest}=w;woModal(null,k,woType(w));
-    const d=$('#modal-root .dlg:last-child')||$('#modal-root .dlg');if(d){$('#wm-t',d).value=w.text||'';if(w.km){$('#wm-d',d).value=woType(w)==='swim'?Math.round(w.km*1000):+w.km.toFixed(2)}$('#wm-d',d).dispatchEvent(new Event('input'))}}
+    const d=$('#modal-root .dlg:last-child')||$('#modal-root .dlg');if(d){$('#wm-t',d).value=w.text||'';if(w.km){$('#wm-d',d).value=isM(woType(w))?Math.round(w.km*1000):+w.km.toFixed(2)}$('#wm-d',d).dispatchEvent(new Event('input'))}}
   else if(a==='tr-tab'){trTab=el.dataset.t;render();const m=$('main');if(m)m.scrollTop=0;window.scrollTo&&window.scrollTo(0,0)}
+  else if(a==='wt-types'){wtModal()}
   else if(a==='tr-filter'){trFilter=el.dataset.t;render()}
   else if(a==='wo-edit'&&!FOOD_TRACKING){const w=S.workouts.find(x=>x.id===el.dataset.id);if(w)woModal(w,k)}
   else if(a==='wo-edit'){const w=S.workouts.find(x=>x.id===el.dataset.id);if(!w)return;
@@ -1712,7 +1757,7 @@ function bodyAct(a,el){
       el2.querySelector('[data-a=c]').onclick=close;
       el2.querySelector('[data-a=s]').onclick=()=>{const p=Math.round(num($('#g-p',el2).value)),kc=Math.round(num($('#g-k',el2).value));if(p>0&&kc>0){store.bodySettings({targets:{protein:p,kcal:kc}});close()}}})}
 }
-const BODY_ACTS=['wo-new','wo-again','tr-tab','tr-filter','parts-toggle','food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
+const BODY_ACTS=['wt-types','wo-new','wo-again','tr-tab','tr-filter','parts-toggle','food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
 /* plan */
 const fmtM=m=>pad(Math.floor(m/60)%24)+':'+pad(m%60);
 const planText=k=>((S.plans.find(p=>p.id===k)||{}).text)||'';
