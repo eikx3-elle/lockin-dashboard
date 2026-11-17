@@ -2079,7 +2079,12 @@ window.addEventListener('focus',()=>ghPoll());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)ghPoll();else if(ghMode)GHF().forEach(F=>{if(F.dirty)flush(F)})});
 window.addEventListener('online',()=>{if(!ghMode)return;GHF().forEach(F=>{if(F.dirty||F.ops.length)scheduleSave(F)});ghPoll()});
 window.addEventListener('offline',()=>{if(ghMode)GHF().forEach(F=>setSave(F,'Offline · saved on this device'))});
-if('serviceWorker' in navigator&&/github\.io$/.test(location.hostname))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&/github\.io$/.test(location.hostname)){
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{const up=()=>reg.update().catch(()=>{});window.addEventListener('focus',up);document.addEventListener('visibilitychange',()=>{if(!document.hidden)up()});setInterval(up,30*60e3)}).catch(()=>{});
+  /* a new version took over: reload once, when it won't interrupt typing */
+  let swReloaded=false;const tryReload=()=>{if(swReloaded)return;const a=document.activeElement;if(a&&a.matches&&a.matches('input,textarea')){setTimeout(tryReload,4000);return}if(GHF().some(F=>F.saving)){setTimeout(tryReload,1500);return}swReloaded=true;location.reload()};
+  if(navigator.serviceWorker.controller)navigator.serviceWorker.addEventListener('controllerchange',tryReload);
+}
 
 /* ---------- cloud mode: data in the artifact's database, synced across devices ---------- */
 let cloudMode=false,resolveCloud=null;
