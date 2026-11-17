@@ -1376,7 +1376,44 @@ function renderMeals(){
     <div class="row" style="margin-top:16px;gap:8px"><span class="muted" style="font-size:12px">Tick a meal when you've eaten it. + adds, × removes.</span><span class="sp"></span><button class="btn sm" data-act="wp-save-tpl">Save as my standard week</button></div>`
   :`<div class="card" style="padding:26px"><p class="muted" style="margin-bottom:16px">No plan for this week yet.</p><div class="row">${tpl?'<button class="btn pri" data-act="wp-tpl">Use my standard week</button>':''}<button class="btn" data-act="wp-copy">Copy last week</button><button class="btn" data-act="wp-blank">Start blank</button></div></div>`}`;
 }
+/* food tracking is switched off (FOOD_TRACKING=false); all its code is kept below for later */
+const FOOD_TRACKING=false;
+function renderTrainWeigh(){
+  const BF=FILES.body;
+  if(!BF.handle&&mode!=='local')return renderBodyToday();
+  const k=bDay(),tk=todayKey(),d=fromKey(k);
+  const wos=S.workouts.filter(w=>w.day===k).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const recentWo=[...new Set(S.workouts.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(w=>w.text))].slice(0,6);
+  const ws=S.weights.slice().sort((a,b)=>a.day.localeCompare(b.day));
+  const last=ws[ws.length-1];
+  const wk7=ws.filter(w=>w.day>dayKey(addDays(new Date(),-7)));
+  const avg7=wk7.length>=2?(wk7.reduce((s,w)=>s+w.kg,0)/wk7.length).toFixed(1):null;
+  const recentW=ws.filter(w=>w.day>dayKey(addDays(new Date(),-60)));
+  let spark='';
+  if(recentW.length>=2){const mn=Math.min(...recentW.map(w=>w.kg)),mx=Math.max(...recentW.map(w=>w.kg)),rg=Math.max(.5,mx-mn);
+    const pts=recentW.map((w,i)=>`${(i/(recentW.length-1)*100).toFixed(2)},${(46-((w.kg-mn)/rg)*40).toFixed(2)}`).join(' ');
+    spark=`<svg class="spark" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#9a9a9a" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg><div class="row" style="justify-content:space-between;font:11px var(--mono);color:var(--tx4)"><span>${fmtShort(recentW[0].day)}</span><span>${mn}–${mx} kg</span><span>${fmtShort(recentW[recentW.length-1].day)}</span></div>`}
+  const label=k===tk?'Today':k===dayKey(addDays(new Date(),-1))?'Yesterday':fmtDay(d);
+  const weekWo=[6,5,4,3,2,1,0].map(i=>{const dd=addDays(new Date(),-i),kk=dayKey(dd),w=S.workouts.filter(x=>x.day===kk);return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${dow(dd)}</span><span class="dot ${w.length?'on':''}"></span></div><div class="kv" style="color:var(--tx2);min-height:30px">${w.length?w.map(x=>esc(x.text)).join(', '):'&nbsp;'}</div></div>`}).join('');
+  const trained7=new Set(S.workouts.filter(x=>x.day>dayKey(addDays(new Date(),-7))&&x.day<=tk).map(x=>x.day)).size;
+  return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${label} <span style="color:var(--tx4);text-transform:none;letter-spacing:0">· ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${fmtDay(d)}</h1></div>
+    <div class="row"><div class="seg"><button class="icon-btn" data-act="body-prev">‹</button>${k!==tk?'<button class="btn sm" data-act="body-today">Today</button>':''}<button class="icon-btn" data-act="body-next" ${k>=tk?'disabled style="opacity:.3"':''}>›</button></div></div></div>
+  <div class="tgrid" style="align-items:start">
+      <div class="card"><h2>Training</h2>
+        <div class="qadd2"><input data-k="wo-text" data-hold data-enter="wo-add" placeholder="e.g. Push day, 5k run, abs"><input data-k="wo-min" data-hold data-enter="wo-add" inputmode="numeric" placeholder="Min"><button class="btn sm" data-act="wo-add">Add</button></div>
+        ${recentWo.length?`<div class="chips2">${recentWo.map(t=>`<span class="cbtn" data-act="wo-quick" data-text="${esc(t)}">${esc(t)}</span>`).join('')}</div>`:''}
+        ${wos.map(w=>`<div class="item"><span style="flex:1;cursor:pointer" data-act="wo-edit" data-id="${w.id}" title="Click to edit">${esc(w.text)}</span><span class="tag mono">${w.mins?w.mins+' min':''}</span><span class="x" data-act="wo-del" data-id="${w.id}">×</span></div>`).join('')||'<div class="empty">No training logged.</div>'}
+      </div>
+      <div class="card"><h2><span>Weigh-in</span>${avg7?`<span class="muted mono" style="font-size:12px">7-day avg ${avg7} kg</span>`:''}</h2>
+        <div class="qadd2"><input data-k="wt-kg" data-hold data-enter="wt-add" inputmode="decimal" placeholder="Weight in kg"><span></span><button class="btn sm" data-act="wt-add">Log</button></div>
+        ${last?`<div class="wbig">${last.kg}<small>kg · ${fmtShort(last.day)}</small></div>${spark}`:'<div class="empty">No weigh-ins yet. Daily weight jumps around, so the 7-day average is the number to watch.</div>'}
+        ${ws.length?`<div style="margin-top:10px">${ws.slice(-4).reverse().map(w=>`<div class="item"><span class="t">${fmtShort(w.day)}</span><span style="flex:1;cursor:pointer" data-act="wt-edit" data-id="${w.id}" title="Click to edit">${w.kg} kg</span><span class="x" data-act="wt-del" data-id="${w.id}">×</span></div>`).join('')}</div>`:''}
+      </div>
+  </div>
+  <div class="card"><h2><span>Last 7 days</span><span class="muted mono" style="font-size:12px">trained ${trained7} of 7 days</span></h2><div class="strip">${weekWo}</div></div>`;
+}
 function renderBody(){const BF=FILES.body;if(!BF.handle&&mode!=='local')return renderBodyToday();
+  if(!FOOD_TRACKING)return renderTrainWeigh();
   return fitTabs()+(fitTab==='plan'?renderWeekPlan():renderBodyToday());
   return fitTabs()+(fitTab==='plan'?renderWeekPlan():fitTab==='groceries'?renderGroceries():fitTab==='foods'?renderFoods():renderBodyToday());}
 function renderBodyToday(){
@@ -1409,7 +1446,7 @@ function renderBodyToday(){
     const pts=recentW.map((w,i)=>`${(i/(recentW.length-1)*100).toFixed(2)},${(46-((w.kg-mn)/rg)*40).toFixed(2)}`).join(' ');
     spark=`<svg class="spark" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#9a9a9a" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg><div class="row" style="justify-content:space-between;font:11px var(--mono);color:var(--tx4)"><span>${fmtShort(recentW[0].day)}</span><span>${mn}–${mx} kg</span><span>${fmtShort(recentW[recentW.length-1].day)}</span></div>`}
   const strip=[6,5,4,3,2,1,0].map(i=>{const dd=addDays(new Date(),-i),kk=dayKey(dd),f=dayFood(kk),p=sumP(f),kc=sumK(f),tr=S.workouts.some(w=>w.day===kk);
-    return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${i===0?'Today':dow(dd)}</span><span class="dot ${p>=tg.protein&&p>0?'on':''}" title="Protein goal"></span></div><div class="pv">${f.length?p+'<span class="muted" style="font-size:11px"> g</span>':'<span class="muted">–</span>'}</div><div class="kv">${f.length?kc+' kcal':'&nbsp;'}</div><div class="kv">${[tr?'trained':'',f.some(x=>x.cheat&&!x.planned)?'cheat':''].filter(Boolean).join(' · ')||'&nbsp;'}</div></div>`}).join('');
+    return `<div class="sday ${kk===k?'on':''}" data-act="body-day" data-date="${kk}"><div class="dn"><span>${dow(dd)}</span><span class="dot ${p>=tg.protein&&p>0?'on':''}" title="Protein goal"></span></div><div class="pv">${f.length?p+'<span class="muted" style="font-size:11px"> g</span>':'<span class="muted">–</span>'}</div><div class="kv">${f.length?kc+' kcal':'&nbsp;'}</div><div class="kv">${[tr?'trained':'',f.some(x=>x.cheat&&!x.planned)?'cheat':''].filter(Boolean).join(' · ')||'&nbsp;'}</div></div>`}).join('');
   const label=k===tk?'Today':k===dayKey(addDays(new Date(),-1))?'Yesterday':k===dayKey(addDays(new Date(),1))?'Tomorrow':fmtDay(d);
   const maxDay=dayKey(addDays(new Date(),7));
   return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${label} <span style="color:var(--tx4);text-transform:none;letter-spacing:0">· ${BF.handle?'<span data-act="body-open" title="Click to switch file" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--tx4)">'+esc(BF.handle.name)+'</span> · <span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${fmtDay(d)}</h1></div>
