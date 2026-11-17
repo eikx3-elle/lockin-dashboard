@@ -2114,9 +2114,43 @@ function moneyAct(a,el){
       <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
       d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=()=>{close();store.moneySettings({budget:num($('#mb-b',d).value),currency:$('#mb-c',d).value.trim()||'$'})}});return}
   if(a==='money-cats'){
-    modal(`<div class="eyebrow">Categories</div><label>One per line, in the order you want them<textarea id="mc-t" style="min-height:220px">${esc(cats().join('\n'))}</textarea></label><div class="muted" style="font-size:12px">Renaming or removing a category doesn't change purchases already logged.</div>
+    let L=cats().map(c=>({orig:c,name:c}));
+    modal(`<div class="eyebrow">Categories</div><div class="muted" style="font-size:12px;margin-top:-4px">Drag ⋮⋮ or use the arrows to reorder. This is the order the chips show in.</div>
+      <div id="mc-rows" style="display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto"></div>
+      <button class="btn sm" data-a="add" style="align-self:flex-start">+ Add category</button>
+      <div class="muted" style="font-size:12px;line-height:1.5">Renaming a category also renames it on purchases you already logged. Removing one keeps old purchases as they are.</div>
       <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
-      d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=()=>{const list=[...new Set($('#mc-t',d).value.split('\n').map(s=>s.trim()).filter(Boolean))];if(!list.length)return;close();store.moneySettings({categories:list})}});return}
+      const rows=$('#mc-rows',d);let dragI=null;
+      const draw=()=>{rows.innerHTML=L.map((x,i)=>`<div class="row mcr" style="gap:6px;flex-wrap:nowrap;align-items:center" data-i="${i}">
+        <span class="mch" style="cursor:grab;color:var(--tx4);padding:0 4px;user-select:none;touch-action:none;font-size:15px">⋮⋮</span>
+        <input data-f="name" value="${esc(x.name)}" placeholder="Name" style="flex:1;min-width:0">
+        <button class="icon-btn" data-m="-1" ${i===0?'disabled style="opacity:.3"':''}>↑</button><button class="icon-btn" data-m="1" ${i===L.length-1?'disabled style="opacity:.3"':''}>↓</button>
+        <button class="icon-btn" data-del title="Remove">×</button></div>`).join('');
+        rows.querySelectorAll('.mcr').forEach(r=>{const i=+r.dataset.i;
+          r.querySelector('[data-f=name]').oninput=e=>L[i].name=e.target.value;
+          r.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const j=i+ +b.dataset.m;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];draw();const t=rows.querySelectorAll('.mcr')[j];t&&t.querySelector('[data-m="'+b.dataset.m+'"]')&&!t.querySelector('[data-m="'+b.dataset.m+'"]').disabled&&t.querySelector('[data-m="'+b.dataset.m+'"]').focus()});
+          r.querySelector('[data-del]').onclick=()=>{if(L.length<=1){toast('Keep at least one category');return}L.splice(i,1);draw()};
+          // pointer drag on the handle (works with mouse, pen and touch)
+          const hd=r.querySelector('.mch');
+          hd.onpointerdown=ev=>{ev.preventDefault();dragI=i;hd.setPointerCapture(ev.pointerId);r.style.opacity='.5';
+            hd.onpointermove=mv=>{const els=[...rows.querySelectorAll('.mcr')];const over=els.find(el=>{const b=el.getBoundingClientRect();return mv.clientY>=b.top&&mv.clientY<=b.bottom});
+              if(!over)return;const j=+over.dataset.i;if(j===dragI)return;const [it]=L.splice(dragI,1);L.splice(j,0,it);dragI=j;
+              draw();const nr=rows.querySelectorAll('.mcr')[j];nr.style.opacity='.5';
+              const nh=nr.querySelector('.mch');try{nh.setPointerCapture(mv.pointerId)}catch(_){}nh.onpointermove=hd.onpointermove;nh.onpointerup=hd.onpointerup;nh.onpointercancel=hd.onpointerup};
+            hd.onpointerup=hd.onpointercancel=()=>{dragI=null;draw()}};
+        });};
+      draw();
+      d.querySelector('[data-a=add]').onclick=()=>{L.push({orig:null,name:''});draw();const ins=rows.querySelectorAll('[data-f=name]');ins[ins.length-1].focus();rows.scrollTop=rows.scrollHeight};
+      d.querySelector('[data-a=c]').onclick=close;
+      d.querySelector('[data-a=s]').onclick=()=>{
+        const seen=new Set(),list=[];L.forEach(x=>{const n=(x.name||'').trim();if(n&&!seen.has(n.toLowerCase())){seen.add(n.toLowerCase());list.push({...x,name:n})}});
+        if(!list.length){toast('Keep at least one category');return}
+        close();
+        list.filter(x=>x.orig&&x.orig!==x.name).forEach(x=>S.expenses.filter(e=>e.category===x.orig).forEach(e=>store.patch('expenses',e.id,{category:x.name})));
+        if(moneyCat&&list.some(x=>x.orig===moneyCat))moneyCat=list.find(x=>x.orig===moneyCat).name;
+        store.moneySettings({categories:list.map(x=>x.name)});
+      };
+    });return}
 }
 document.addEventListener('change',e=>{
   const t=e.target;if(!t.matches||!t.matches('[data-k=m-note]'))return;
