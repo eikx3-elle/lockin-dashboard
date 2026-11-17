@@ -637,6 +637,8 @@ const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],food:[],me
 const COLS=['sessions','folders','tasks','events'];
 let mode='starting';
 const hasFS=typeof window.showSaveFilePicker==='function'&&typeof window.showOpenFilePicker==='function';
+let showArch=false;
+const isArch=fid=>{const f=S.folders.find(x=>x.id===fid);return !!(f&&f.archived)};
 let planOff=new Date().getHours()>=18?1:0, bodyDay=null, view='focus', curFolder=null, showDone=false, weekOff=0, logWeek=0, logQuery='';
 let editingTask=null, editingDue=null, editingFolder=null, editingGoal=false, rendering=false, selectNext=false;
 try{curFolder=localStorage.getItem('lockin-folder')}catch(e){}
@@ -849,7 +851,7 @@ function sessionModal(o){
   let mins=s?Math.round(s.durSec/60):isTimer?Math.max(1,Math.round(o.ms/60000)):60;
   const sd=new Date(start);
   const auto=isTimer?S.tasks.filter(t=>t.done&&!t.sessionId&&t.doneAt>=start):[];
-  const open=S.tasks.filter(t=>!t.done);
+  const open=S.tasks.filter(t=>!t.done&&!isArch(t.folderId));
   const groups={};
   open.forEach(t=>{(groups[t.folderId]=groups[t.folderId]||[]).push(t)});
   const pickHtml=isEdit?'':`
@@ -972,7 +974,7 @@ function renderFocus(){
     `<button class="btn lg" data-act="timer-start">Resume</button><button class="btn pri lg" data-act="timer-finish">Finish</button>`;
   const tk=todayKey(),today=new Date();
   const evs=k=>S.events.filter(e=>e.date===k).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  const dues=(fn)=>S.tasks.filter(x=>!x.done&&x.due&&fn(x.due));
+  const dues=(fn)=>S.tasks.filter(x=>!x.done&&x.due&&fn(x.due)&&!isArch(x.folderId));
   const evItem=e=>`<div class="item ev" data-act="ev-edit" data-id="${e.id}"><span class="t">${e.time||'—'}</span><span>${esc(e.title)}</span></div>`;
   const dueItem=x=>`<div class="item"><div class="chk" data-act="task-toggle" data-id="${x.id}"></div><span>${esc(x.text)}${x.due<tk?' <span class="muted">· overdue</span>':''}</span><span class="tag">${esc(folderName(x.folderId))}</span></div>`;
   const nowM=today.getHours()*60+today.getMinutes();
@@ -1006,21 +1008,48 @@ function taskRow(x){
     `<div class="due ${x.due?'has':''} ${over?'over':''}" data-act="task-due" data-id="${x.id}" title="${x.due?'Due date':'Add a due date'}">${x.due?fmtShort(x.due):'+ date'}</div>`;
   return `<div class="task ${x.done?'is-done':''}"><div class="chk ${x.done?'on':''}" data-act="task-toggle" data-id="${x.id}"></div>${text}${due}<div class="x" data-act="task-del" data-id="${x.id}" title="Delete">×</div></div>`;
 }
+function renderArchived(f){
+  const items=S.tasks.filter(t=>t.folderId===f.id);
+  const done=items.filter(t=>t.done).sort((a,b)=>(a.doneAt||0)-(b.doneAt||0)),open=items.filter(t=>!t.done).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const pct=items.length?Math.round(done.length/items.length*100):0;
+  const ss=S.sessions.filter(s=>(s.done||[]).some(d=>d.folder===f.name)||items.some(t=>t.sessionId===s.id));
+  const secs=ss.reduce((a,s)=>a+(s.durSec||0),0);
+  const days=new Set([...done.map(t=>t.doneAt&&dayKey(new Date(t.doneAt))),...ss.map(s=>s.day)].filter(Boolean));
+  const first=done.length?done[0].doneAt:null,last=done.length?done[done.length-1].doneAt:null;
+  const fd=ts=>fmtShort(dayKey(new Date(ts)));
+  const row=t=>`<div class="task ${t.done?'is-done':''}" style="cursor:default"><div class="chk ${t.done?'on':''}" style="pointer-events:none"></div><div class="tx">${esc(t.text)}</div><div class="due ${t.done?'has':''}" style="pointer-events:none">${t.done&&t.doneAt?fd(t.doneAt):''}</div></div>`;
+  return `<div class="listpane">
+    <div class="lh"><h1>${esc(f.name)}</h1><div class="row"><button class="ghost" data-act="folder-unarch" data-id="${f.id}">Restore</button><button class="ghost danger-t" data-act="folder-del" data-id="${f.id}">Delete forever</button></div></div>
+    <div class="lsub">Archived ${f.archivedAt?fd(f.archivedAt):''} · read-only · restore it to make changes</div>
+    <div class="stats" style="margin-bottom:22px">
+      <div class="stat"><div class="eyebrow">Completed</div><div class="n">${pct}<small>%</small></div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${done.length} of ${items.length}</div></div>
+      <div class="stat"><div class="eyebrow">Time logged</div><div class="n">${secs?fmtH(secs)+'<small>h</small>':'—'}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${ss.length} ${ss.length===1?'session':'sessions'}</div></div>
+      <div class="stat"><div class="eyebrow">Days worked</div><div class="n">${days.size}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${first?fd(first)+(last&&fd(last)!==fd(first)?' – '+fd(last):''):'—'}</div></div>
+    </div>
+    ${done.length?`<div class="mhd" style="margin-top:0">Done</div>${done.map(row).join('')}`:''}
+    ${open.length?`<div class="mhd">Not done</div>${open.map(row).join('')}`:''}
+    ${!items.length?'<div class="empty">This list was empty.</div>':''}
+  </div>`;
+}
 function renderLists(){
-  const fs=foldersSorted();
-  if(!fs.find(f=>f.id===curFolder))curFolder=fs[0]?fs[0].id:null;
+  const all=foldersSorted(),fs=all.filter(f=>!f.archived),arch=all.filter(f=>f.archived).sort((a,b)=>(b.archivedAt||0)-(a.archivedAt||0));
+  if(!all.find(f=>f.id===curFolder))curFolder=fs[0]?fs[0].id:null;
+  if(curFolder&&isArch(curFolder))showArch=true;
   const left=`<div class="folders"><div class="fh"><span class="eyebrow">Checklists</span><button class="ghost" data-act="folder-new">+ New</button></div>
     ${fs.map(f=>{const n=S.tasks.filter(t=>t.folderId===f.id&&!t.done).length;return `<div class="fold ${f.id===curFolder?'on':''}" data-act="folder-open" data-id="${f.id}"><span class="nm">${esc(f.name)}</span><span class="cnt">${n||''}</span></div>`}).join('')}
-    ${fs.length?'':'<div class="empty" style="padding:4px">No checklists yet.</div>'}</div>`;
+    ${fs.length?'':'<div class="empty" style="padding:4px">No checklists yet.</div>'}
+    ${arch.length?`<div class="fold arch-t" data-act="arch-toggle" style="margin-top:14px;color:var(--tx4)"><span class="nm">${showArch?'▾':'▸'} Archived</span><span class="cnt">${arch.length}</span></div>
+      ${showArch?arch.map(f=>{const it=S.tasks.filter(t=>t.folderId===f.id),dn=it.filter(t=>t.done).length;return `<div class="fold ${f.id===curFolder?'on':''}" data-act="folder-open" data-id="${f.id}" style="${f.id===curFolder?'':'color:var(--tx3)'}"><span class="nm">${esc(f.name)}</span><span class="cnt">${it.length?Math.round(dn/it.length*100)+'%':''}</span></div>`}).join(''):''}`:''}</div>`;
   if(!curFolder)return `<div class="lists">${left}<div class="listpane"><div class="empty" style="padding-top:6px">Make a checklist for each exam, project or extracurricular.<br><br><button class="btn" data-act="folder-new">+ New checklist</button></div></div></div>`;
-  const f=fs.find(x=>x.id===curFolder);
+  const f=all.find(x=>x.id===curFolder);
+  if(f.archived)return `<div class="lists">${left}${renderArchived(f)}</div>`;
   const items=S.tasks.filter(t=>t.folderId===f.id);
   const open=items.filter(t=>!t.done).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const done=items.filter(t=>t.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   const title=editingFolder===f.id?`<input data-k="edit-folder" data-commit="folder" data-id="${f.id}" data-autofocus value="${esc(f.name)}">`:`<h1 data-act="folder-rename" data-id="${f.id}" title="Click to rename">${esc(f.name)}</h1>`;
   return `<div class="lists">${left}
   <div class="listpane">
-    <div class="lh">${title}<div class="row"><button class="ghost" data-act="folder-rename" data-id="${f.id}">Rename</button><button class="ghost danger-t" data-act="folder-del" data-id="${f.id}">Delete</button></div></div>
+    <div class="lh">${title}<div class="row"><button class="ghost" data-act="folder-rename" data-id="${f.id}">Rename</button><button class="ghost" data-act="folder-arch" data-id="${f.id}" title="Hide it from your lists but keep all its progress">Archive</button></div></div>
     <div class="lsub">${open.length} to do · ${done.length} done</div>
     <input class="add" data-k="add-task" placeholder="+ Add an item, press Enter">
     <div>${open.map(taskRow).join('')||'<div class="empty" style="padding:10px 4px">All clear here.</div>'}</div>
@@ -1035,7 +1064,7 @@ function renderWeek(){
   const cols=[0,1,2,3,4,5,6].map(i=>{
     const d=addDays(ws,i),k=dayKey(d);
     const evs=S.events.filter(e=>e.date===k).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-    const dues=S.tasks.filter(t=>!t.done&&t.due===k);
+    const dues=S.tasks.filter(t=>!t.done&&t.due===k&&!isArch(t.folderId));
     hrs+=tot[k]||0;evc+=evs.length;duec+=dues.length;
     return `<div class="wcol ${k===tk?'today':''} ${k<tk?'past':''}">
       <div class="whead"><span class="eyebrow">${DOW[i]}</span><span class="wdate">${d.getDate()}</span></div>
@@ -2333,8 +2362,11 @@ document.addEventListener('click',async e=>{
     case 'folder-open':curFolder=id;showDone=false;try{localStorage.setItem('lockin-folder',id)}catch(_){}render();break;
     case 'folder-new':{const nid=uid();curFolder=nid;editingFolder=nid;selectNext=true;await store.put('folders',nid,{name:'Untitled',createdAt:Date.now()});render();break}
     case 'folder-rename':editingFolder=id;render();break;
+    case 'arch-toggle':showArch=!showArch;render();break;
+    case 'folder-arch':{const f=S.folders.find(x=>x.id===id);if(!f)break;await store.patch('folders',id,{archived:true,archivedAt:Date.now()});const nx=foldersSorted().find(x=>!x.archived);curFolder=nx?nx.id:id;showArch=!nx;render();toast(`Archived “${f.name}”. It’s under Archived with all its progress.`);break}
+    case 'folder-unarch':{const f=S.folders.find(x=>x.id===id);if(!f)break;await store.patch('folders',id,{archived:false,archivedAt:null});curFolder=id;render();toast(`Restored “${f.name}”`);break}
     case 'folder-del':{const f=S.folders.find(x=>x.id===id),n=S.tasks.filter(t=>t.folderId===id);
-      if(await confirmBox(`Delete “${f.name}”${n.length?` and its ${n.length} item${n.length>1?'s':''}`:''}?`)){await store.del('folders',id);for(const t of n)await store.del('tasks',t.id)}break}
+      if(await confirmBox(`Permanently delete “${f.name}”${n.length?` and its ${n.length} item${n.length>1?'s':''}`:''}? This can’t be undone. Your logged sessions stay in Progress & Log.`,'Delete forever')){await store.del('folders',id);for(const t of n)await store.del('tasks',t.id)}break}
     case 'toggle-done':showDone=!showDone;render();break;
     case 'task-toggle':{const t=S.tasks.find(x=>x.id===id);if(t)store.patch('tasks',id,t.done?{done:false,doneAt:null,sessionId:null}:{done:true,doneAt:Date.now(),sessionId:null});break}
     case 'task-edit':editingTask=id;render();break;
