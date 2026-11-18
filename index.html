@@ -401,45 +401,6 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .mamt{font:13px var(--mono);white-space:nowrap}
 @media (max-width:980px){#app{grid-template-columns:168px 1fr}main{padding:30px 24px 80px}.mstats,.stats{grid-template-columns:1fr 1fr}.fgrid,.bgrid,.mgrid,.pgrid,.plan,.tgrid{grid-template-columns:1fr}.lists{grid-template-columns:180px 1fr}.week{overflow-x:auto}.hab{grid-template-columns:18px 1fr}.hab .hcells,.hab .hhist{grid-column:2}}
 /* fitness tabs */
-/* fitness habits: weekly split planner */
-.spl{display:grid;grid-template-columns:210px 1fr;gap:18px;align-items:start}
-.pal{display:flex;flex-direction:column;gap:8px}
-.blk{display:flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--s1);cursor:grab;user-select:none;touch-action:none;font-size:14px}
-.blk:hover{border-color:var(--tx4)}
-.blk .bn{flex:1;min-width:0;font-weight:500}
-.blk .bc{font:11.5px var(--mono);color:var(--tx3)}
-.blk.full{opacity:.4}
-.blk.sel{border-color:var(--tx);box-shadow:0 0 0 1px var(--tx)}
-.blk.rest .bn{color:var(--tx3);font-weight:400}
-.days7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
-.dz{border:1px dashed var(--line2);border-radius:12px;min-height:170px;padding:8px;display:flex;flex-direction:column;gap:6px;transition:background .12s,border-color .12s}
-.dz .dh{display:flex;justify-content:space-between;align-items:baseline;font:11px var(--mono);color:var(--tx4);text-transform:uppercase;letter-spacing:.08em;padding:2px 2px 6px}
-.dz.today{border-style:solid;border-color:var(--tx4)}
-.dz.today .dh{color:var(--tx)}
-.dz.over{background:#151515;border-color:var(--tx2)}
-.dz.pick{cursor:pointer}
-.dz.pick:hover{border-color:var(--tx3)}
-.pb{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:9px;padding:8px 7px;background:var(--s1);font-size:13px;cursor:grab;user-select:none;touch-action:none}
-.pb .chk{margin:0;flex:none}
-.pb .pn{flex:1;min-width:0;line-height:1.25;overflow:hidden;text-overflow:ellipsis}
-@media (min-width:701px){.days7 .pb{font-size:12.5px;gap:5px}}
-@media (hover:hover) and (min-width:701px){.pb .x{display:none}.pb:hover .x{display:inline}}
-.pb .x{opacity:.3;cursor:pointer;padding:0 2px}
-.pb .x:hover{opacity:1}
-.pb.done{border-color:var(--tx3)}
-.pb.done .pn{color:var(--tx3)}
-.pb.rest{border-style:dashed;color:var(--tx3)}
-.pb .auto{font:10px var(--mono);color:var(--tx4)}
-.dz .hint{margin:auto;font-size:11.5px;color:var(--tx4);text-align:center}
-.dghost{position:fixed;z-index:9999;pointer-events:none;opacity:.9;transform:translate(-50%,-60%) rotate(-2deg);box-shadow:0 8px 24px rgba(0,0,0,.5)}
-.wkh{display:flex;gap:6px;align-items:flex-end;height:64px;margin-top:10px}
-.wkh div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
-.wkh i{display:block;width:100%;max-width:30px;background:#2a2a2a;border-radius:3px;min-height:2px}
-.wkh i.full{background:var(--tx2)}
-.wkh span{font:10px var(--mono);color:var(--tx4)}
-.todayplan{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
-@media (max-width:900px){.spl{grid-template-columns:1fr}.pal{flex-direction:row;flex-wrap:wrap}.pal .blk{flex:1 1 auto}}
-@media (max-width:700px){.days7{grid-template-columns:1fr}.dz{min-height:0;flex-direction:row;flex-wrap:wrap;align-items:center;padding:8px 10px}.dz .dh{width:58px;padding:0;flex-direction:column;gap:2px}.dz .pb{flex:1 1 140px}.dz .hint{margin:0;flex:1;text-align:left}}
 /* training log */
 .wtypes{display:flex;flex-wrap:wrap;gap:6px}
 .wtypes span{font-size:13px;color:var(--tx3);border:1px solid var(--line2);border-radius:999px;padding:6px 13px;cursor:pointer;user-select:none}
@@ -672,7 +633,7 @@ const todayKey=()=>dayKey(new Date());
 const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
 /* ---------- state ---------- */
-const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],groceries:[],splitweeks:[],settings:{},bodySettings:{},moneySettings:{}};
+const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],settings:{},bodySettings:{},moneySettings:{}};
 const COLS=['sessions','folders','tasks','events'];
 let mode='starting';
 const hasFS=typeof window.showSaveFilePicker==='function'&&typeof window.showOpenFilePicker==='function';
@@ -690,7 +651,7 @@ async function safe(p){try{return await p}catch(e){console.error(e);toast(e&&e.c
 
 /* ---------- storage: two files (study + body) ---------- */
 const STUDY_COLS=['sessions','folders','tasks','events','plans','habits'];
-const BODY_COLS=['food','meals','workouts','weights','ingredients','recipes','weekplans','shops','splitweeks'];
+const BODY_COLS=['food','meals','workouts','weights','ingredients','recipes','weekplans','shops'];
 const mkFile=(name,idbKey,cols,sk,suggested)=>({name,idbKey,cols,sk,suggested,handle:null,pending:null,lastWrite:0,saving:false,dirty:false,ops:[],timer:null,state:''});
 const FILES={study:mkFile('study','file',STUDY_COLS,'settings','lockin-work.json'),body:mkFile('body','bodyfile',BODY_COLS,'bodySettings','lockin-fitness.json'),money:mkFile('money','moneyfile',['expenses','groceries'],'moneySettings','lockin-money.json')};
 const fileOf=col=>col==='expenses'?FILES.money:BODY_COLS.includes(col)?FILES.body:FILES.study;
@@ -1617,113 +1578,7 @@ function wtModal(){
   });
 }
 function woTypeIn(w,list){if(w.type)return w.type;const g=woGuess((w.text||'').toLowerCase());return list.some(x=>x.id===g)?g:(list.some(x=>x.id==='other')?'other':list[list.length-1].id)}
-/* ---------- fitness habits: weekly split ---------- */
-let splWkOff=0,splSel=null;
-const SPL_DEFAULT=[];
-const splBlocks=()=>{const s=(S.bodySettings||{}).split;return s&&Array.isArray(s.blocks)?s.blocks:SPL_DEFAULT};
-const splBlock=id=>splBlocks().find(b=>b.id===id);
-function splWeekKey(off){return dayKey(addDays(weekStart(new Date()),7*off))}
-function splDays(wk){return [0,1,2,3,4,5,6].map(i=>dayKey(addDays(fromKey(wk),i)))}
-// layout for a week: saved doc, or the most recent earlier saved week (same weekdays), not yet saved
-function splLayout(wk){
-  const doc=S.splitweeks.find(x=>x.id===wk);if(doc)return {saved:true,days:doc.days||{}};
-  const prev=S.splitweeks.filter(x=>x.id<wk).sort((a,b)=>b.id.localeCompare(a.id))[0];
-  const days={};if(prev){const pd=splDays(prev.id),cd=splDays(wk);pd.forEach((k,i)=>{const l=(prev.days||{})[k];if(l&&l.length)days[cd[i]]=l.map(x=>({b:x.b}))})}
-  return {saved:false,days};
-}
-function splAuto(b,day){if(!b||!b.type||b.type==='__rest')return false;return S.workouts.some(w=>w.day===day&&woType(w)===b.type)}
-function splIsDone(x,day){const b=splBlock(x.b);if(!b||b.type==='__rest')return false;return !!x.done||splAuto(b,day)}
-function splSave(wk,days){const clean={};Object.entries(days).forEach(([k,l])=>{if(l&&l.length)clean[k]=l.map(x=>x.done?{b:x.b,done:true}:{b:x.b})});
-  if(S.splitweeks.find(x=>x.id===wk))store.patch('splitweeks',wk,{days:clean});else store.put('splitweeks',wk,{days:clean,createdAt:Date.now()})}
-function splStats(wk){const L=splLayout(wk),days=splDays(wk);let done=0;
-  const target=splBlocks().filter(b=>b.type!=='__rest').reduce((s,b)=>s+(+b.count||0),0);
-  days.forEach(k=>(L.days[k]||[]).forEach(x=>{if(splIsDone(x,k))done++}));return {done:Math.min(done,target||done),target}}
-function renderSplit(){
-  const wk=splWeekKey(splWkOff),days=splDays(wk),tk=todayKey(),L=splLayout(wk),B=splBlocks();
-  const placed={};days.forEach(k=>(L.days[k]||[]).forEach(x=>placed[x.b]=(placed[x.b]||0)+1));
-  const st=splStats(wk);
-  const label=splWkOff===0?'This week':splWkOff===1?'Next week':splWkOff===-1?'Last week':'Week of '+fmtShort(wk);
-  const pal=B.map(b=>{const n=placed[b.id]||0,c=+b.count||0;return `<div class="blk ${b.type==='__rest'?'rest':''} ${c&&n>=c?'full':''} ${splSel===b.id?'sel':''}" data-drag="${b.id}"><span class="bn">${esc(b.name)}</span><span class="bc">${n}/${c}</span></div>`}).join('');
-  const DN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const cols=days.map((k,i)=>{const l=L.days[k]||[];
-    return `<div class="dz ${k===tk?'today':''} ${splSel?'pick':''}" data-drop="${k}" ${splSel?'data-act="spl-place" data-day="'+k+'"':''}><div class="dh"><span>${k===tk?'Today':DN[i]}</span><span>${fromKey(k).getDate()}</span></div>
-      ${l.map((x,j)=>{const b=splBlock(x.b);if(!b)return '';const rest=b.type==='__rest',dn=splIsDone(x,k),au=!x.done&&dn;
-        return `<div class="pb ${rest?'rest':''} ${dn?'done':''}" data-drag="${b.id}" data-from="${k}" data-idx="${j}">${rest?'':`<span class="chk ${dn?'on':''}" data-act="spl-tick" data-day="${k}" data-idx="${j}" title="${au?'Ticked from your training log':'Mark done'}"></span>`}<span class="pn">${esc(b.name)}</span>${au?'<span class="auto" title="Ticked from your training log">log</span>':''}<span class="x" data-act="spl-rm" data-day="${k}" data-idx="${j}">×</span></div>`}).join('')}
-      ${l.length?'':`<div class="hint">${splSel?'Tap to place':'Drop here'}</div>`}</div>`}).join('');
-  // last 8 weeks
-  const hist=[];for(let i=7;i>=0;i--){const w=splWeekKey(splWkOff-i),s=splStats(w);hist.push({w,s})}
-  let streak=0;for(let i=0;;i++){const w=splWeekKey(-1-i);if(w<((S.splitweeks.map(x=>x.id).sort()[0])||'9'))break;const s=splStats(w);if(s.target&&s.done>=s.target)streak++;else break;if(i>200)break}
-  const curDone=st.target&&st.done>=st.target;
-  return `<div class="row" style="justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-      <div class="seg"><button class="icon-btn" data-act="spl-prev">‹</button><span class="muted" style="font-size:13px;min-width:92px;text-align:center">${label}</span><button class="icon-btn" data-act="spl-next">›</button></div>
-      <div class="row" style="gap:8px">${L.saved||!Object.keys(L.days).length?'':'<span class="muted" style="font-size:12px">Copied from your last plan</span>'}<button class="ghost" data-act="spl-clear">Clear week</button><button class="ghost" data-act="spl-edit">Edit habits</button></div></div>
-    ${B.length?`<div class="spl">
-      <div><div class="eyebrow" style="margin-bottom:8px">Drag onto a day</div><div class="pal">${pal}</div>
-        <div class="muted" style="font-size:11.5px;line-height:1.5;margin-top:10px">Or tap one, then tap a day. Drag placed ones to move them. Sessions you log in Training tick them automatically.</div></div>
-      <div class="days7">${cols}</div></div>`:`<div class="empty">Add the habits you want each week (e.g. Lift ×2, Swim ×1, Rest ×2), then drag them onto days.<br><br><button class="btn" data-act="spl-edit">Set up habits</button></div>`}
-    ${B.length?`<div class="card" style="margin-top:18px"><h2><span>${label}: ${st.done}/${st.target} done</span><span class="muted mono" style="font-size:12px">${curDone?'week complete ✓':streak?streak+(streak===1?' week':' weeks')+' in a row':''}</span></h2>
-      <div class="wkh">${hist.map(({w,s})=>`<div title="Week of ${fmtShort(w)}: ${s.done}/${s.target}"><i class="${s.target&&s.done>=s.target?'full':''}" style="height:${s.target?Math.max(3,Math.round(s.done/s.target*48)):3}px"></i><span>${fmtShort(w).replace(/ .*/,'')}</span></div>`).join('')}</div></div>`:''}`;
-}
-function splTodayHtml(){const tk=todayKey(),wk=splWeekKey(0),L=splLayout(wk),l=L.days[tk]||[];if(!splBlocks().length)return '';
-  return `<div class="todayplan"><span class="eyebrow" style="margin-right:4px">Today’s plan</span>${l.length?l.map((x,j)=>{const b=splBlock(x.b);if(!b)return '';const rest=b.type==='__rest',dn=splIsDone(x,tk);return `<div class="pb ${rest?'rest':''} ${dn?'done':''}" style="cursor:default">${rest?'':`<span class="chk ${dn?'on':''}" data-act="spl-tick" data-day="${tk}" data-idx="${j}"></span>`}<span class="pn">${esc(b.name)}</span></div>`}).join(''):`<span class="muted" style="font-size:13px">Nothing planned · <span style="text-decoration:underline;cursor:pointer" data-act="tr-tab" data-t="habits">plan your week</span></span>`}</div>`}
-function splPlace(bid,day,fromDay,fromIdx){const wk=splWeekKey(splWkOff),L=splLayout(wk),days=JSON.parse(JSON.stringify(L.days));
-  let item={b:bid};
-  if(fromDay!=null&&fromDay!==''){const l=days[fromDay]||[];const [it]=l.splice(+fromIdx,1);if(it)item=it;days[fromDay]=l;if(fromDay===day){days[day]=l}}
-  (days[day]=days[day]||[]).push(item);splSave(wk,days)}
-function splAct(a,el){
-  const wk=splWeekKey(splWkOff);
-  if(a==='spl-prev'){splWkOff--;render();return}
-  if(a==='spl-next'){splWkOff++;render();return}
-  if(a==='spl-place'){if(splSel){splPlace(splSel,el.dataset.day);splSel=null;render()}return}
-  if(a==='spl-tick'||a==='spl-rm'){const day=el.dataset.day,idx=+el.dataset.idx,w=weekStartKey(fromKey(day)),L=splLayout(w),days=JSON.parse(JSON.stringify(L.days)),l=days[day]||[],x=l[idx];if(!x)return;
-    if(a==='spl-rm')l.splice(idx,1);
-    else{const b=splBlock(x.b);if(!x.done&&splAuto(b,day)){toast('Ticked from a '+wtName(b.type)+' session you logged today');return}x.done=!x.done}
-    days[day]=l;splSave(w,days);return}
-  if(a==='spl-clear'){splSave(wk,{});return}
-  if(a==='spl-edit'){splModal();return}
-}
-function splModal(){
-  let L=splBlocks().map(b=>({...b}));
-  const sel='font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 6px;min-width:0';
-  const opts=x=>`<option value="" ${!x.type?'selected':''}>Tick by hand</option>${wtList().map(t=>`<option value="${t.id}" ${x.type===t.id?'selected':''}>Auto: ${esc(t.name)} session</option>`).join('')}<option value="__rest" ${x.type==='__rest'?'selected':''}>Rest day</option>`;
-  modal(`<div class="eyebrow">Fitness habits</div><div class="muted" style="font-size:12px;margin-top:-4px">What you want each week and how many times. Link one to a training type and logging that session ticks it.</div>
-    <div id="sp-rows" style="display:flex;flex-direction:column;gap:6px"></div>
-    <button class="btn sm" data-a="add" style="align-self:flex-start">+ Add habit</button>
-    <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
-    const rows=$('#sp-rows',d);
-    const draw=()=>{rows.innerHTML=L.map((x,i)=>`<div class="row" style="gap:6px;flex-wrap:nowrap" data-i="${i}">
-      <input data-f="name" value="${esc(x.name)}" placeholder="e.g. Lift heavy" style="flex:1.3;min-width:0">
-      <input data-f="count" value="${x.count||1}" inputmode="numeric" style="width:46px;text-align:center" title="Times per week">
-      <select data-f="type" style="${sel};flex:1">${opts(x)}</select>
-      <button class="icon-btn" data-m="-1" ${i===0?'disabled style="opacity:.3"':''}>↑</button><button class="icon-btn" data-del>×</button></div>`).join('');
-      rows.querySelectorAll('[data-i]').forEach(r=>{const i=+r.dataset.i;
-        r.querySelector('[data-f=name]').oninput=e=>L[i].name=e.target.value;
-        r.querySelector('[data-f=count]').oninput=e=>L[i].count=Math.max(1,Math.min(7,parseInt(e.target.value)||1));
-        r.querySelector('[data-f=type]').onchange=e=>L[i].type=e.target.value;
-        r.querySelector('[data-m]').onclick=()=>{if(i>0){[L[i-1],L[i]]=[L[i],L[i-1]];draw()}};
-        r.querySelector('[data-del]').onclick=()=>{L.splice(i,1);draw()}})};
-    draw();
-    d.querySelector('[data-a=add]').onclick=()=>{L.push({id:'b'+uid(),name:'',count:1,type:''});draw();const ins=rows.querySelectorAll('[data-f=name]');ins[ins.length-1].focus()};
-    d.querySelector('[data-a=c]').onclick=close;
-    d.querySelector('[data-a=s]').onclick=()=>{const blocks=L.map(x=>({id:x.id,name:(x.name||'').trim(),count:+x.count||1,type:x.type||''})).filter(x=>x.name);close();store.bodySettings({split:{...((S.bodySettings||{}).split||{}),blocks}})};
-  });
-}
-// pointer drag & drop (mouse + touch)
-(()=>{let dg=null;
-  const zoneAt=(x,y)=>{const el=document.elementFromPoint(x,y);return el&&el.closest('[data-drop]')};
-  document.addEventListener('pointerdown',e=>{const c=e.target.closest('[data-drag]');if(!c||e.target.closest('[data-act]')||e.button>0)return;
-    dg={el:c,b:c.dataset.drag,from:c.dataset.from,idx:c.dataset.idx,x:e.clientX,y:e.clientY,on:false,ghost:null,zone:null,pid:e.pointerId}});
-  document.addEventListener('pointermove',e=>{if(!dg||e.pointerId!==dg.pid)return;
-    if(!dg.on){if(Math.hypot(e.clientX-dg.x,e.clientY-dg.y)<6)return;dg.on=true;const g=dg.el.cloneNode(true);g.classList.add('dghost');g.style.width=dg.el.offsetWidth+'px';document.body.appendChild(g);dg.ghost=g;dg.el.style.opacity='.35'}
-    e.preventDefault();dg.ghost.style.left=e.clientX+'px';dg.ghost.style.top=e.clientY+'px';
-    const z=zoneAt(e.clientX,e.clientY);if(z!==dg.zone){dg.zone&&dg.zone.classList.remove('over');z&&z.classList.add('over');dg.zone=z}},{passive:false});
-  const end=e=>{if(!dg||e.pointerId!==dg.pid)return;const d=dg;dg=null;
-    if(d.ghost)d.ghost.remove();d.el.style.opacity='';d.zone&&d.zone.classList.remove('over');
-    if(d.on){if(e.type==='pointerup'&&d.zone){splPlace(d.b,d.zone.dataset.drop,d.from,d.idx)}else if(d.from!=null&&e.type==='pointerup'&&!d.zone){/* dropped outside: leave it */}splSel=null;render();return}
-    if(e.type==='pointerup'&&d.from==null){splSel=splSel===d.b?null:d.b;render()}};
-  document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
-})();
-function trTabs(){return `<div class="ftabs">${[['today','Today'],['habits','Habits'],['log','Training log']].map(([k,l])=>`<span class="${trTab===k?'on':''}" data-act="tr-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
+function trTabs(){return `<div class="ftabs">${[['today','Today'],['log','Training log']].map(([k,l])=>`<span class="${trTab===k?'on':''}" data-act="tr-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
 function weekStartKey(dd){const x=new Date(dd);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return dayKey(x)}
 function renderTrainLog(){
   const all=S.workouts.slice().sort((a,b)=>b.day.localeCompare(a.day)||(b.createdAt||0)-(a.createdAt||0));
@@ -1782,9 +1637,8 @@ function renderTrainWeigh(){
   const trained7=new Set(S.workouts.filter(x=>x.day>dayKey(addDays(new Date(),-7))&&x.day<=tk).map(x=>x.day)).size;
   const headTW=`<div class="head"><div class="l"><span class="eyebrow">Fitness · ${label} <span style="color:var(--tx4);text-transform:none;letter-spacing:0">· ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${fmtDay(d)}</h1></div>
     <div class="row"><div class="seg"><button class="icon-btn" data-act="body-prev">‹</button>${k!==tk?'<button class="btn sm" data-act="body-today">Today</button>':''}<button class="icon-btn" data-act="body-next" ${k>=tk?'disabled style="opacity:.3"':''}>›</button></div></div></div>`;
-  if(trTab==='habits')return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span><h1>Habits</h1></div></div>`+trTabs()+renderSplit();
   if(trTab==='log')return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span><h1>Training log</h1></div></div>`+renderTrainLog();
-  return headTW+trTabs()+(k===tk?splTodayHtml():'')+`  <div class="tgrid" style="align-items:start">
+  return headTW+trTabs()+`  <div class="tgrid" style="align-items:start">
       <div class="card"><h2><span>Training</span><button class="btn pri sm" data-act="wo-new">+ Log</button></h2>
         ${lastByType.length?`<div class="chips2" style="margin-bottom:4px">${lastByType.map(w=>`<span class="cbtn" data-act="wo-again" data-id="${w.id}" title="Start from your last ${esc(wtName(woType(w)))}">${esc(wtName(woType(w)))}</span>`).join('')}</div>`:''}
         ${wos.map(w=>woCard(w)).join('')||`<div class="empty">${k===tk?'Nothing logged today.':'Nothing logged this day.'}</div>`}
@@ -1795,7 +1649,6 @@ function renderTrainWeigh(){
         ${ws.length?`<div style="margin-top:10px">${ws.slice(-4).reverse().map(w=>`<div class="item"><span class="t">${fmtShort(w.day)}</span><span style="flex:1;cursor:pointer" data-act="wt-edit" data-id="${w.id}" title="Click to edit">${w.kg} kg</span><span class="x" data-act="wt-del" data-id="${w.id}">×</span></div>`).join('')}</div>`:''}
       </div>
   </div>
-  ${S.habits.some(isFitHab)?fitHabitsHtml():""}
   <div class="card"><h2><span>Last 7 days</span><span class="muted mono" style="font-size:12px">trained ${trained7} of 7 days</span></h2><div class="strip">${weekWo}</div></div>`;
 }
 function renderBody(){const BF=FILES.body;if(!BF.handle&&mode!=='local')return renderBodyToday();
@@ -1921,7 +1774,6 @@ function bodyAct(a,el){
   else if(a==='wo-again'){const w=S.workouts.find(x=>x.id===el.dataset.id);if(!w)return;const {id,day,createdAt,feel,notes,...rest}=w;woModal(null,k,woType(w));
     const d=$('#modal-root .dlg:last-child')||$('#modal-root .dlg');if(d){$('#wm-t',d).value=w.text||'';if(w.km){$('#wm-d',d).value=isM(woType(w))?Math.round(w.km*1000):+w.km.toFixed(2)}$('#wm-d',d).dispatchEvent(new Event('input'))}}
   else if(a==='tr-tab'){trTab=el.dataset.t;render();const m=$('main');if(m)m.scrollTop=0;window.scrollTo&&window.scrollTo(0,0)}
-  else if(a.startsWith('spl-')){splAct(a,el)}
   else if(a==='wt-types'){wtModal()}
   else if(a==='tr-filter'){trFilter=el.dataset.t;render()}
   else if(a==='wo-edit'&&!FOOD_TRACKING){const w=S.workouts.find(x=>x.id===el.dataset.id);if(w)woModal(w,k)}
@@ -1957,7 +1809,7 @@ function bodyAct(a,el){
       el2.querySelector('[data-a=c]').onclick=close;
       el2.querySelector('[data-a=s]').onclick=()=>{const p=Math.round(num($('#g-p',el2).value)),kc=Math.round(num($('#g-k',el2).value));if(p>0&&kc>0){store.bodySettings({targets:{protein:p,kcal:kc}});close()}}})}
 }
-const BODY_ACTS=['spl-prev','spl-next','spl-place','spl-tick','spl-rm','spl-clear','spl-edit','wt-types','wo-new','wo-again','tr-tab','tr-filter','parts-toggle','food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
+const BODY_ACTS=['wt-types','wo-new','wo-again','tr-tab','tr-filter','parts-toggle','food-cheat-toggle','cheat-add','food-edit','wo-edit','wt-edit','food-meal','food-mode','food-eat','food-eat-all','body-create','body-open','body-reconnect','food-add','meal-add','meal-del','meal-save','food-del','wo-add','wo-quick','wo-del','wt-add','wt-del','body-prev','body-next','body-today','body-day','goals-edit'];
 /* plan */
 const fmtM=m=>pad(Math.floor(m/60)%24)+':'+pad(m%60);
 const planText=k=>((S.plans.find(p=>p.id===k)||{}).text)||'';
@@ -2036,8 +1888,10 @@ document.addEventListener('input',e=>{
 /* habits */
 const monthKey=d=>d.getFullYear()+'-'+pad(d.getMonth()+1);
 function habCount(hb,d){const ks=hb.checks||[];if(hb.period==='week'||hb.period==='day'){const a=dayKey(weekStart(d)),b=dayKey(addDays(weekStart(d),7));return ks.filter(k=>k>=a&&k<b).length}const p=monthKey(d);return ks.filter(k=>k.startsWith(p)).length}
-function habRow(hb){
-    const now=new Date(),tk=todayKey(),ws=weekStart(now);{
+function renderHabits(){
+  const now=new Date(),tk=todayKey(),ws=weekStart(now);
+  const hs=habSorted();
+  const row=hb=>{
     const n=habCount(hb,now),t=hb.target||1,hit=n>=t,ks=new Set(hb.checks||[]);
     let cells='',hist='';
     if(hb.period==='day'){
@@ -2055,21 +1909,9 @@ function habRow(hb){
     if(hb.period==='day'){let c7=0;for(let i=0;i<7;i++)if(ks.has(dayKey(addDays(now,-i))))c7++;subHit=ks.has(tk);sub=`${subHit?'Done today':'Not yet today'} · ${c7}/7 last 7 days`}
     return `<div class="hab" data-hid="${hb.id}" data-period="${hb.period}"><div class="grip" title="Drag to reorder">⋮⋮</div><div><div class="hab-name" data-act="hab-detail" data-id="${hb.id}" title="See momentum">${esc(hb.name)}</div><div class="hab-sub ${subHit?'hit':''}">${sub}</div></div>
       <div class="hcells ${hb.period!=='week'?'month':''}">${cells}</div><div class="hhist" title="Past ${hb.period==='week'?'weeks':'months'}">${hist}</div></div>`;
-  }
-}
-const isFitHab=hb=>hb.area==='fitness';
-function fitHabitsHtml(){
-  const hs=habSorted().filter(isFitHab);
-  return `<div class="card fithabs"><h2><span>Habits</span><span class="muted mono" style="font-size:12px">${hs.filter(hb=>habCount(hb,new Date())>=(hb.target||1)&&hb.period!=='day').length}/${hs.filter(hb=>hb.period!=='day').length} hit this week</span></h2>
-    ${hs.map(habRow).join('')||'<div class="empty">No fitness habits yet.</div>'}
-    <div class="habadd" style="margin:14px 0 0"><input data-k="fhab-name" data-hold data-enter2="hab-add-fit" placeholder="New fitness habit, e.g. Swim"><select id="fhab-period" onchange="const t=document.querySelector('[data-k=fhab-target]');if(t)t.style.visibility=this.value==='day'?'hidden':'visible'"><option value="week">Weekly</option><option value="day">Daily</option><option value="month">Monthly</option></select><input data-k="fhab-target" data-hold data-enter2="hab-add-fit" inputmode="numeric" placeholder="× per week"><button class="btn" data-act="hab-add-fit">Add</button></div>
-  </div>`;
-}
-function renderHabits(){
-  const now=new Date(),row=habRow;
-  const hs=habSorted().filter(x=>!isFitHab(x)),nFit=S.habits.filter(isFitHab).length;
+  };
   const dy=hs.filter(x=>x.period==='day'),wk=hs.filter(x=>x.period==='week'),mo=hs.filter(x=>x.period==='month');
-  return `<div class="head"><div class="l"><span class="eyebrow">Habits</span><h1>Show up, again and again</h1></div>${nFit?`<div class="row"><button class="ghost" data-act="nav" data-view="body">${nFit} fitness ${nFit===1?'habit':'habits'} → Fitness</button></div>`:''}</div>
+  return `<div class="head"><div class="l"><span class="eyebrow">Habits</span><h1>Show up, again and again</h1></div></div>
   <div class="habadd"><input data-k="hab-name" data-hold data-enter2="hab-add" placeholder="New habit, e.g. Gym, Read 30 min, Call family"><select id="hab-period" onchange="const t=document.querySelector('[data-k=hab-target]');if(t)t.style.visibility=this.value==='day'?'hidden':'visible'"><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select><input data-k="hab-target" data-hold data-enter2="hab-add" inputmode="numeric" placeholder="Times" style="visibility:hidden"><button class="btn sm" data-act="hab-add">Add</button></div>
   ${!hs.length?'<div class="empty">No habits yet. Add one above: daily, or weekly / monthly with how many times you want to do it.</div>':''}
   ${dy.length?`<div class="habsec"><span class="eyebrow">Daily</span>${dy.map(row).join('')}</div>`:''}
@@ -2077,9 +1919,6 @@ function renderHabits(){
   ${mo.length?`<div class="habsec"><span class="eyebrow">Monthly · ${MON[now.getMonth()]}</span>${mo.map(row).join('')}</div>`:''}`;
 }
 function habitAct(a,el){
-  if(a==='hab-add-fit'){const n=$('[data-k=fhab-name]'),t=$('[data-k=fhab-target]'),p=$('#fhab-period');const name=n.value.trim();if(!name){n.focus();return}
-    const period=['day','week','month'].includes(p.value)?p.value:'week';const target=period==='day'?1:Math.max(1,Math.min(period==='week'?7:31,parseInt(t.value)||(period==='week'?2:4)));
-    n.value='';t.value='';store.put('habits',uid(),{name,period,target,area:'fitness',checks:[],order:Date.now(),createdAt:Date.now()});return}
   if(a==='hab-add'){const n=$('[data-k=hab-name]'),t=$('[data-k=hab-target]'),p=$('#hab-period');const name=n.value.trim();if(!name){n.focus();return}
     const period=['day','week','month'].includes(p.value)?p.value:'week';const target=period==='day'?1:Math.max(1,Math.min(period==='week'?7:31,parseInt(t.value)||(period==='week'?3:4)));
     n.value='';t.value='';store.put('habits',uid(),{name,period,target,checks:[],createdAt:Date.now()});return}
@@ -2089,11 +1928,10 @@ function habitAct(a,el){
   else if(a==='hab-edit'){
     modal(`<div class="eyebrow">Edit habit</div><input class="big" id="h-n" value="${esc(hb.name)}" autofocus>
       <div class="row"><label>Repeats<select id="h-p" style="font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px"><option value="day" ${hb.period==='day'?'selected':''}>Daily</option><option value="week" ${hb.period==='week'?'selected':''}>Weekly</option><option value="month" ${hb.period==='month'?'selected':''}>Monthly</option></select></label><label>Times per period<input id="h-t" inputmode="numeric" value="${hb.target}"></label></div>
-      <label>Shows in<select id="h-a" style="font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px"><option value="" ${!isFitHab(hb)?'selected':''}>Habits page</option><option value="fitness" ${isFitHab(hb)?'selected':''}>Fitness page</option></select></label>
       <div class="row-end"><button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
       d.querySelector('[data-a=c]').onclick=close;
       d.querySelector('[data-a=del]').onclick=async()=>{if(await confirmBox(`Delete \u201c${hb.name}\u201d and its history?`)){close();store.del('habits',hb.id)}};
-      d.querySelector('[data-a=s]').onclick=()=>{const name=$('#h-n',d).value.trim(),period=$('#h-p',d).value,target=period==='day'?1:Math.max(1,parseInt($('#h-t',d).value)||1);if(!name)return;close();store.patch('habits',hb.id,{name,period,target,area:$('#h-a',d).value||null})};
+      d.querySelector('[data-a=s]').onclick=()=>{const name=$('#h-n',d).value.trim(),period=$('#h-p',d).value,target=period==='day'?1:Math.max(1,parseInt($('#h-t',d).value)||1);if(!name)return;close();store.patch('habits',hb.id,{name,period,target})};
     });
   }
 }
@@ -2479,7 +2317,7 @@ function habitDetail(hb){
     d.querySelector('[data-a=tick]').onclick=()=>{const s=new Set(hb.checks||[]);s.has(tk)?s.delete(tk):s.add(tk);store.patch('habits',hb.id,{checks:[...s].sort()});close();const n=S.habits.find(x=>x.id===hb.id);if(n)habitDetail(n)};
   },'x');
 }
-const HAB_ACTS=['hab-add-fit','hab-add','hab-toggle','hab-edit','hab-detail'];
+const HAB_ACTS=['hab-add','hab-toggle','hab-edit','hab-detail'];
 const VIEWS={habits:renderHabits,focus:renderFocus,lists:renderLists,week:renderWeek,log:renderLog,progress:()=>renderProgress()+`<div style="margin-top:48px"></div>`+renderLog(),body:renderBody,money:renderMoney};
 
 /* ---------- actions ---------- */
