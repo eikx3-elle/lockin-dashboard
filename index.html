@@ -633,7 +633,7 @@ const todayKey=()=>dayKey(new Date());
 const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
 /* ---------- state ---------- */
-const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],settings:{},bodySettings:{},moneySettings:{}};
+const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],groceries:[],settings:{},bodySettings:{},moneySettings:{}};
 const COLS=['sessions','folders','tasks','events'];
 let mode='starting';
 const hasFS=typeof window.showSaveFilePicker==='function'&&typeof window.showOpenFilePicker==='function';
