@@ -1916,27 +1916,34 @@ function renderHabits(){
   ${!hs.length?'<div class="empty">No habits yet. Add one above: daily, or weekly / monthly with how many times you want to do it.</div>':''}
   ${dy.length?`<div class="habsec"><span class="eyebrow">Daily</span>${dy.map(row).join('')}</div>`:''}
   ${wk.length?`<div class="habsec"><span class="eyebrow">Weekly</span>${wk.map(row).join('')}</div>`:''}
-  ${mo.length?`<div class="habsec"><span class="eyebrow">Monthly · ${MON[now.getMonth()]}</span>${mo.map(row).join('')}</div>`:''}`;
+  ${mo.length?`<div class="habsec"><span class="eyebrow">Monthly · ${MON[now.getMonth()]}</span>${mo.map(row).join('')}</div>`:''}
+  ${(()=>{const ar=S.habits.filter(x=>x.archived).sort((a,b)=>(b.archivedAt||0)-(a.archivedAt||0));if(!ar.length)return '';
+    return `<div class="habsec"><span class="eyebrow" style="cursor:pointer" data-act="hab-archtoggle">${showHabArch?'▾':'▸'} Archived · ${ar.length}</span>${showHabArch?ar.map(hb=>{const s2=habSeries(hb),per=hb.period==='day'?'Daily':hb.period==='week'?`Weekly · ${hb.target}×`:`Monthly · ${hb.target}×`,u=hb.period==='day'?'day':hb.period==='week'?'week':'month';
+      return `<div class="hab" style="grid-template-columns:1fr auto;cursor:pointer;opacity:.75" data-act="hab-detail" data-id="${hb.id}"><div><div class="hab-name">${esc(hb.name)}</div><div class="hab-sub">${per} · archived ${hb.archivedAt?fmtShort(dayKey(new Date(hb.archivedAt))):''}</div></div><div class="muted mono" style="font-size:12px;text-align:right">${s2.total} check-ins<br>best ${s2.best} ${u}${s2.best===1?'':'s'}</div></div>`}).join(''):''}</div>`})()}`;
 }
 function habitAct(a,el){
   if(a==='hab-add'){const n=$('[data-k=hab-name]'),t=$('[data-k=hab-target]'),p=$('#hab-period');const name=n.value.trim();if(!name){n.focus();return}
     const period=['day','week','month'].includes(p.value)?p.value:'week';const target=period==='day'?1:Math.max(1,Math.min(period==='week'?7:31,parseInt(t.value)||(period==='week'?3:4)));
     n.value='';t.value='';store.put('habits',uid(),{name,period,target,checks:[],createdAt:Date.now()});return}
+  if(a==='hab-archtoggle'){showHabArch=!showHabArch;render();return}
   const hb=S.habits.find(x=>x.id===el.dataset.id);if(!hb)return;
   if(a==='hab-toggle'){const k=el.dataset.day;if(k>todayKey())return;const s=new Set(hb.checks||[]);s.has(k)?s.delete(k):s.add(k);store.patch('habits',hb.id,{checks:[...s].sort()})}
   else if(a==='hab-detail'){habitDetail(hb)}
   else if(a==='hab-edit'){
     modal(`<div class="eyebrow">Edit habit</div><input class="big" id="h-n" value="${esc(hb.name)}" autofocus>
       <div class="row"><label>Repeats<select id="h-p" style="font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px"><option value="day" ${hb.period==='day'?'selected':''}>Daily</option><option value="week" ${hb.period==='week'?'selected':''}>Weekly</option><option value="month" ${hb.period==='month'?'selected':''}>Monthly</option></select></label><label>Times per period<input id="h-t" inputmode="numeric" value="${hb.target}"></label></div>
-      <div class="row-end"><button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+      <div class="row-end"><button class="ghost danger-t" data-a="del">Delete</button><button class="ghost" data-a="arch" title="Hide it but keep its history">Archive</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
       d.querySelector('[data-a=c]').onclick=close;
-      d.querySelector('[data-a=del]').onclick=async()=>{if(await confirmBox(`Delete \u201c${hb.name}\u201d and its history?`)){close();store.del('habits',hb.id)}};
+      d.querySelector('[data-a=arch]').onclick=()=>{close();store.patch('habits',hb.id,{archived:true,archivedAt:Date.now()});toast(`Archived \u201c${hb.name}\u201d. It\u2019s at the bottom of Habits with its history.`)};
+      d.querySelector('[data-a=del]').onclick=async()=>{if(await confirmBox(`Delete \u201c${hb.name}\u201d and its history? This can\u2019t be undone. Archive keeps the history instead.`)){close();store.del('habits',hb.id)}};
       d.querySelector('[data-a=s]').onclick=()=>{const name=$('#h-n',d).value.trim(),period=$('#h-p',d).value,target=period==='day'?1:Math.max(1,parseInt($('#h-t',d).value)||1);if(!name)return;close();store.patch('habits',hb.id,{name,period,target})};
     });
   }
 }
 /* habit order + drag to reorder */
-const habSorted=()=>S.habits.slice().sort((a,b)=>((a.order??1e9)-(b.order??1e9))||((a.createdAt||0)-(b.createdAt||0)));
+const habAll=()=>S.habits.slice().sort((a,b)=>((a.order??1e9)-(b.order??1e9))||((a.createdAt||0)-(b.createdAt||0)));
+let showHabArch=false;
+const habSorted=()=>S.habits.filter(x=>!x.archived).slice().sort((a,b)=>((a.order??1e9)-(b.order??1e9))||((a.createdAt||0)-(b.createdAt||0)));
 let dragHab=null;
 document.addEventListener('mousedown',e=>{const g=e.target.closest&&e.target.closest('.grip');if(g){const c=g.closest('.hab,.fitem');if(c)c.draggable=true}});
 document.addEventListener('mouseup',()=>{document.querySelectorAll('.hab[draggable=true]').forEach(c=>{if(!dragHab)c.draggable=false})});
@@ -2302,7 +2309,7 @@ function habitDetail(hb){
   const tk=todayKey(),doneToday=(hb.checks||[]).includes(tk);
   const momWord=S2.mom>=80?'Locked in':S2.mom>=55?'Building':S2.mom>=30?'Warming up':'Getting started';
   modal(`<div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="eyebrow">${hb.period==='day'?'Daily':hb.period==='week'?`Weekly · ${hb.target}× a week`:`Monthly · ${hb.target}× a month`}</div><div style="font:700 26px 'Chakra Petch',sans-serif;margin-top:4px">${esc(hb.name)}</div></div>
-      <div class="row"><button class="btn sm ${doneToday?'pri':''}" data-a="tick">${doneToday?'✓ Done today':'Tick today'}</button><button class="ghost" data-a="edit">Edit</button></div></div>
+      <div class="row">${hb.archived?`<span class="muted" style="font-size:12px">Archived ${hb.archivedAt?fmtShort(dayKey(new Date(hb.archivedAt))):''}</span><button class="btn sm" data-a="unarch">Restore</button><button class="ghost danger-t" data-a="del">Delete forever</button>`:`<button class="btn sm ${doneToday?'pri':''}" data-a="tick">${doneToday?'✓ Done today':'Tick today'}</button><button class="ghost" data-a="edit">Edit</button>`}</div></div>
     <div class="hd-stats">
       <div class="hd-stat"><div class="eyebrow">Momentum</div><div class="n">${S2.mom}<small>% · ${momWord}</small></div></div>
       <div class="hd-stat"><div class="eyebrow">Streak</div><div class="n">${S2.cur}<small>${unit}${S2.cur===1?'':'s'}</small></div></div>
@@ -2313,11 +2320,13 @@ function habitDetail(hb){
     <div class="hd-chart"><div class="eyebrow" style="margin-bottom:10px">${hb.period==='day'?'Last 26 weeks':hb.period==='week'?'Last 26 weeks':'Last 12 months'}</div>${hist}</div>
     <div class="muted" style="font-size:12px;line-height:1.6">Momentum rises each ${unit} you hit and fades slowly when you miss. A missed ${unit} dents it, it doesn't reset it. ${hb.period!=='day'?`A ${unit} counts as hit once you reach ${hb.target}.`:''} Total check-ins: ${S2.total}.</div>`,
   (d,close)=>{
+    if(hb.archived){d.querySelector('[data-a=unarch]').onclick=()=>{close();store.patch('habits',hb.id,{archived:false,archivedAt:null});toast(`Restored \u201c${hb.name}\u201d`)};
+      d.querySelector('[data-a=del]').onclick=async()=>{close();if(await confirmBox(`Permanently delete \u201c${hb.name}\u201d and all its history?`,'Delete forever'))store.del('habits',hb.id)};return}
     d.querySelector('[data-a=edit]').onclick=()=>{close();habitAct('hab-edit',{dataset:{id:hb.id}})};
     d.querySelector('[data-a=tick]').onclick=()=>{const s=new Set(hb.checks||[]);s.has(tk)?s.delete(tk):s.add(tk);store.patch('habits',hb.id,{checks:[...s].sort()});close();const n=S.habits.find(x=>x.id===hb.id);if(n)habitDetail(n)};
   },'x');
 }
-const HAB_ACTS=['hab-add','hab-toggle','hab-edit','hab-detail'];
+const HAB_ACTS=['hab-archtoggle','hab-add','hab-toggle','hab-edit','hab-detail'];
 const VIEWS={habits:renderHabits,focus:renderFocus,lists:renderLists,week:renderWeek,log:renderLog,progress:()=>renderProgress()+`<div style="margin-top:48px"></div>`+renderLog(),body:renderBody,money:renderMoney};
 
 /* ---------- actions ---------- */
