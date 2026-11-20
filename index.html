@@ -363,6 +363,7 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .hd-bars .b{flex:1;background:#3a3a3a;border-radius:3px 3px 0 0;min-height:2px}
 .hd-bars .b.hit{background:var(--tx)}
 .hd-bars .tg{position:absolute;left:0;right:0;border-top:1px dashed var(--tx3)}
+.calctip{position:fixed;z-index:10000;font:600 12px var(--mono);color:#0a0a0a;background:var(--tx);border-radius:6px;padding:3px 8px;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 .expd{margin:-2px 0 8px 14px;padding:8px 12px 6px;border-left:1px solid var(--line2);font-size:13px}
 .expd>div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;color:var(--tx2)}
 .expd>div i{font-style:normal;font:11.5px var(--mono);color:var(--tx4)}
@@ -1304,7 +1305,28 @@ function renderProgress(){
 /* body */
 const targets=()=>({protein:120,kcal:2000,...((S.bodySettings||{}).targets||{})});
 const bDay=()=>bodyDay||todayKey();
-const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.]/g,''));return isFinite(n)?Math.round(n*10)/10:0};
+// calculator: "12.9+3.2", "=45.4-3", "3*2.50", "(10+5)/2". Never uses eval.
+function calc(v){let s=String(v??'').trim().replace(/^=/,'').replace(/[$€£¥,\s]/g,'').replace(/[x×]/gi,'*').replace(/÷/g,'/');
+  if(!s)return NaN;if(!/^[0-9.+\-*/()]+$/.test(s))return NaN;let i=0;
+  const peek=()=>s[i],eat=c=>{if(s[i]===c){i++;return true}return false};
+  const numb=()=>{const m=/^\d*\.?\d+|^\d+\.?/.exec(s.slice(i));if(!m)throw 0;i+=m[0].length;return parseFloat(m[0])};
+  const fac=()=>{if(eat('-'))return -fac();if(eat('+'))return fac();if(eat('(')){const v=add();if(!eat(')'))throw 0;return v}return numb()};
+  const mul=()=>{let v=fac();for(;;){if(eat('*'))v*=fac();else if(eat('/')){const d=fac();if(!d)throw 0;v/=d}else return v}};
+  const add=()=>{let v=mul();for(;;){if(eat('+'))v+=mul();else if(eat('-'))v-=mul();else return v}};
+  try{const r=add();return i===s.length&&isFinite(r)?r:NaN}catch(e){return NaN}}
+const isExpr=v=>/\d\s*[+\-*/x×÷]\s*[\d(]|^\s*=/.test(String(v||''));
+const num=v=>{let n=calc(v);if(isNaN(n))n=isExpr(v)?0:parseFloat(String(v).replace(/[^0-9.]/g,''));return isFinite(n)?Math.round(n*100)/100:0};
+// live "= result" bubble for calculator fields, and swap the formula for its result when you leave the field
+(()=>{let tip=null;const show=el=>{const v=el.value;if(!isExpr(v)||isNaN(calc(v))){if(tip)tip.style.display='none';return}
+    if(!tip){tip=document.createElement('div');tip.className='calctip';document.body.appendChild(tip)}
+    const r=el.getBoundingClientRect();tip.textContent='= '+(Math.round(calc(v)*100)/100).toFixed(2);tip.style.display='block';tip.style.left=(r.left+8)+'px';tip.style.top=(r.bottom+4)+'px'};
+  document.addEventListener('input',e=>{const el=e.target;if(el.matches&&el.matches('[data-calc]'))show(el)},true);
+  document.addEventListener('focusin',e=>{const el=e.target;if(el.matches&&el.matches('[data-calc]'))show(el)},true);
+  const done=el=>{if(tip)tip.style.display='none';if(isExpr(el.value)){const r=calc(el.value);if(!isNaN(r)){el.value=(Math.round(r*100)/100).toString();el.dispatchEvent(new Event('input',{bubbles:true}))}}};
+  document.addEventListener('focusout',e=>{const el=e.target;if(el.matches&&el.matches('[data-calc]'))done(el)},true);
+  document.addEventListener('keydown',e=>{const el=e.target;if(e.key==='Enter'&&el.matches&&el.matches('[data-calc]')&&isExpr(el.value)){const r=calc(el.value);if(!isNaN(r))el.value=(Math.round(r*100)/100).toString();if(tip)tip.style.display='none'}},true);
+  window.addEventListener('scroll',()=>{if(tip)tip.style.display='none'},true);
+})();
 const dayFood=k=>S.food.filter(f=>f.day===k&&!f.skipped);
 const sumP=a=>Math.round(a.filter(f=>!f.planned).reduce((s,f)=>s+(+f.protein||0),0));
 const sumAllP=a=>Math.round(a.reduce((s,f)=>s+(+f.protein||0),0));
@@ -1556,7 +1578,7 @@ function fitAct(a,el){
     },true);return}
   if(a==='gr-done'){const rows=groceryRows(gwk).filter(r=>r.got&&r.packs>0);if(!rows.length)return;const total=Math.round(rows.reduce((s,r)=>s+r.packs*r.price,0)*100)/100;
     modal(`<div class="eyebrow">Done shopping</div><div class="dur-big">${fmt$(total)}</div>
-      <div class="row"><label>Total you paid (${esc(cur())})<input id="gd-t" inputmode="decimal" value="${total.toFixed(2)}"></label><label>Day<input type="date" id="gd-d" value="${todayKey()}"></label></div>
+      <div class="row"><label>Total you paid (${esc(cur())})<input id="gd-t" inputmode="text" data-calc value="${total.toFixed(2)}"></label><label>Day<input type="date" id="gd-d" value="${todayKey()}"></label></div>
       <div class="muted" style="font-size:12.5px">This adds ${rows.length} item${rows.length===1?'':'s'} to your leftovers and logs one Groceries purchase in Money.${FILES.money.handle?'':' (Money isn’t connected on this device, so it won’t be logged there.)'}</div>
       <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Log it</button></div>`,(d,close)=>{
       d.querySelector('[data-a=c]').onclick=close;
@@ -2148,7 +2170,7 @@ function renderGrocery(){
   </div>
   <div class="mgrid">
     <div class="card"><h2><span>${label}'s list</span><span class="muted mono" style="font-size:12px">${got.length}/${items.length} in basket</span></h2>
-      <div class="gadd"><input data-k="g-name" data-hold data-enter4="gro-add" placeholder="Add an item, e.g. eggs" autocomplete="off" list="g-names"><input data-k="g-qty" data-hold data-enter4="gro-add" placeholder="Qty"><input data-k="g-price" data-hold data-enter4="gro-add" inputmode="decimal" placeholder="${cur()} est."><button class="btn sm" data-act="gro-add">Add</button></div>
+      <div class="gadd"><input data-k="g-name" data-hold data-enter4="gro-add" placeholder="Add an item, e.g. eggs" autocomplete="off" list="g-names"><input data-k="g-qty" data-hold data-enter4="gro-add" placeholder="Qty"><input data-k="g-price" data-hold data-enter4="gro-add" inputmode="text" data-calc placeholder="${cur()} est."><button class="btn sm" data-act="gro-add">Add</button></div>
       <datalist id="g-names">${[...new Map(S.groceries.map(g=>[g.name.toLowerCase(),g])).values()].map(g=>`<option value="${esc(g.name)}">`).join('')}</datalist>
       ${missing.length||(!items.length&&prev.length)?`<div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap">${missing.length?`<button class="btn sm" data-act="gro-staples">+ Add my staples (${missing.length})</button>`:''}${!items.length&&prev.length?`<button class="btn sm" data-act="gro-copy">Copy last week’s list</button>`:''}</div>`:''}
       ${todo.map(row).join('')}
@@ -2184,21 +2206,21 @@ function groAct(a,el){
   if(a==='gro-clear'){groItems(wk).filter(x=>x.got).forEach(x=>store.del('groceries',x.id));return}
   if(a==='gro-edit'&&g){
     modal(`<div class="eyebrow">Edit item</div><input class="big" id="ge-n" value="${esc(g.name)}" autofocus>
-      <div class="row"><label>Qty<input id="ge-q" value="${esc(g.qty||'')}" placeholder="e.g. 2, 500g"></label><label>Est. price (${esc(cur())})<input id="ge-p" inputmode="decimal" value="${g.price||''}"></label></div>
+      <div class="row"><label>Qty<input id="ge-q" value="${esc(g.qty||'')}" placeholder="e.g. 2, 500g"></label><label>Est. price (${esc(cur())})<input id="ge-p" inputmode="text" data-calc value="${g.price||''}"></label></div>
       <div class="row-end"><button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
       const save=()=>{close();store.patch('groceries',g.id,{name:$('#ge-n',d).value.trim()||g.name,qty:$('#ge-q',d).value.trim(),price:Math.round(num($('#ge-p',d).value)*100)/100})};
       d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=del]').onclick=()=>{close();store.del('groceries',g.id)};
       d.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')save()}))});return}
   if(a==='gro-budget'){const b=+((S.moneySettings||{}).groceryBudget)||0;
-    modal(`<div class="eyebrow">Weekly grocery budget</div><label>Budget per week (${esc(cur())})<input id="gb-b" inputmode="decimal" value="${b||''}" placeholder="e.g. 50" autofocus></label><div class="muted" style="font-size:12px">Leave empty for no budget.</div>
+    modal(`<div class="eyebrow">Weekly grocery budget</div><label>Budget per week (${esc(cur())})<input id="gb-b" inputmode="text" data-calc value="${b||''}" placeholder="e.g. 50" autofocus></label><div class="muted" style="font-size:12px">Leave empty for no budget.</div>
       <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
       const save=()=>{close();store.moneySettings({groceryBudget:num($('#gb-b',d).value)})};
       d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=save;$('#gb-b',d).addEventListener('keydown',e=>{if(e.key==='Enter')save()})});return}
   if(a==='gro-done'){const items=groItems(wk),got=items.filter(x=>x.got),est=(got.length?got:items).reduce((s,x)=>s+(+x.price||0),0);
     const day=wk===dayKey(weekStart(new Date()))?todayKey():wk;
     modal(`<div class="eyebrow">Done shopping</div>
-      <div class="row"><label>What did you pay? (${esc(cur())})<input id="gd-t" inputmode="decimal" value="${est?est.toFixed(2):''}" placeholder="receipt total" autofocus></label><label>Day<input type="date" id="gd-d" value="${day}"></label></div>
-      <label>How much of that wasn’t on the list? (${esc(cur())})<input id="gd-o" inputmode="decimal" placeholder="0 if you stuck to it"></label>
+      <div class="row"><label>What did you pay? (${esc(cur())})<input id="gd-t" inputmode="text" data-calc value="${est?est.toFixed(2):''}" placeholder="receipt total" autofocus></label><label>Day<input type="date" id="gd-d" value="${day}"></label></div>
+      <label>How much of that wasn’t on the list? (${esc(cur())})<input id="gd-o" inputmode="text" data-calc placeholder="0 if you stuck to it"></label>
       <div class="muted" style="font-size:12px;line-height:1.5">Logs one “${esc(groCat())}” purchase in Spending, with your ${got.length?'ticked':'listed'} items saved inside it. Be honest about off-list buys. Seeing the number is the point.</div>
       <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Log it</button></div>`,(d,close)=>{
       const save=()=>{const amount=Math.round(num($('#gd-t',d).value)*100)/100;if(!amount){toast('Enter what you paid');return}
@@ -2249,7 +2271,7 @@ function renderMoney(){
   </div>
   <div class="mgrid">
     <div class="card"><h2>Add a purchase</h2>
-      <div class="madd"><input data-k="m-amt" data-hold data-enter3="money-add" inputmode="decimal" placeholder="${cur()} amount" autocomplete="off"><input data-k="m-note" data-hold data-enter3="money-add" list="m-notes" placeholder="What for? e.g. chicken rice, laundry" autocomplete="off"><input type="date" data-k="m-day" data-hold value="${isCur?tk:dayKey(mStart)}"><button class="btn sm" data-act="money-add">Add</button></div>
+      <div class="madd"><input data-k="m-amt" data-hold data-enter3="money-add" inputmode="text" data-calc placeholder="${cur()} amount" autocomplete="off"><input data-k="m-note" data-hold data-enter3="money-add" list="m-notes" placeholder="What for? e.g. chicken rice, laundry" autocomplete="off"><input type="date" data-k="m-day" data-hold value="${isCur?tk:dayKey(mStart)}"><button class="btn sm" data-act="money-add">Add</button></div>
       <datalist id="m-notes">${notes.map(e=>`<option value="${esc(e.note)}">`).join('')}</datalist>
       <div class="catpick">${cats().map(c=>`<span class="${c===mcat?'on':''}" data-act="money-cat" data-c="${esc(c)}">${esc(c)}</span>`).join('')}</div>
       <div style="margin-top:18px">
@@ -2282,14 +2304,14 @@ function moneyAct(a,el){
   if(a==='money-exp'){const id=el.dataset.id;expOpen.has(id)?expOpen.delete(id):expOpen.add(id);render();return}
   if(a==='money-edit'){const e=S.expenses.find(x=>x.id===el.dataset.id);if(!e)return;
     modal(`<div class="eyebrow">Edit purchase</div><input class="big" id="me-n" value="${esc(e.note||'')}" placeholder="What for?" autofocus>
-      <div class="row"><label>Amount (${esc(cur())})<input id="me-a" inputmode="decimal" value="${e.amount}"></label><label>Category<select id="me-c" style="font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px">${[...new Set([...cats(),e.category||'Other'])].map(c=>`<option ${c===(e.category||'Other')?'selected':''}>${esc(c)}</option>`).join('')}</select></label><label>Day<input type="date" id="me-d" value="${e.day}"></label></div>
+      <div class="row"><label>Amount (${esc(cur())})<input id="me-a" inputmode="text" data-calc value="${e.amount}"></label><label>Category<select id="me-c" style="font:inherit;color:var(--tx);background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:9px 11px">${[...new Set([...cats(),e.category||'Other'])].map(c=>`<option ${c===(e.category||'Other')?'selected':''}>${esc(c)}</option>`).join('')}</select></label><label>Day<input type="date" id="me-d" value="${e.day}"></label></div>
       <div style="display:flex;flex-direction:column;gap:6px"><div class="row" style="justify-content:space-between"><span class="eyebrow">What you bought <span style="text-transform:none;letter-spacing:0;color:var(--tx4)">· optional</span></span><span class="muted mono" id="me-it" style="font-size:11.5px"></span></div>
         <div id="me-rows" style="display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto"></div>
         <button class="btn sm" data-a="addi" style="align-self:flex-start">+ Add item</button></div>
       <div class="row-end"><button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
       let IT=(e.items||[]).map(x=>({...x}));const rows=$('#me-rows',d);
       const tot=()=>{const t=IT.reduce((s,x)=>s+(+x.price||0),0);$('#me-it',d).textContent=t?`items ${fmt$(t)}`:''};
-      const draw=(focusLast)=>{rows.innerHTML=IT.map((x,i)=>`<div class="eir" data-i="${i}"><input data-f="name" value="${esc(x.name||'')}" placeholder="Item"><input data-f="qty" value="${esc(x.qty||'')}" placeholder="Qty"><input data-f="price" inputmode="decimal" value="${x.price||''}" placeholder="${esc(cur())}"><button class="icon-btn" data-x title="Remove">×</button></div>`).join('');
+      const draw=(focusLast)=>{rows.innerHTML=IT.map((x,i)=>`<div class="eir" data-i="${i}"><input data-f="name" value="${esc(x.name||'')}" placeholder="Item"><input data-f="qty" value="${esc(x.qty||'')}" placeholder="Qty"><input data-f="price" inputmode="text" data-calc value="${x.price||''}" placeholder="${esc(cur())}"><button class="icon-btn" data-x title="Remove">×</button></div>`).join('');
         rows.querySelectorAll('.eir').forEach(r=>{const i=+r.dataset.i;r.querySelectorAll('input').forEach(inp=>{inp.oninput=()=>{const f=inp.dataset.f;IT[i][f]=f==='price'?Math.round(num(inp.value)*100)/100:inp.value;if(f==='price')tot()};
           inp.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();if(i===IT.length-1){IT.push({name:'',qty:'',price:0});draw(true)}else rows.querySelectorAll('.eir')[i+1].querySelector('input').focus()}}});
           r.querySelector('[data-x]').onclick=()=>{IT.splice(i,1);draw()}});
@@ -2300,7 +2322,7 @@ function moneyAct(a,el){
       ['#me-n','#me-a','#me-d'].forEach(s=>$(s,d).addEventListener('keydown',ev=>{if(ev.key==='Enter')save()}));
     });return}
   if(a==='money-budget'){const b=+((S.moneySettings||{}).budget)||0;
-    modal(`<div class="eyebrow">Monthly budget</div><div class="row"><label>Budget per month (${esc(cur())})<input id="mb-b" inputmode="decimal" value="${b||''}" placeholder="e.g. 600" autofocus></label><label>Currency symbol<input id="mb-c" value="${esc(cur())}"></label></div><div class="muted" style="font-size:12px">Leave the budget empty to turn it off.</div>
+    modal(`<div class="eyebrow">Monthly budget</div><div class="row"><label>Budget per month (${esc(cur())})<input id="mb-b" inputmode="text" data-calc value="${b||''}" placeholder="e.g. 600" autofocus></label><label>Currency symbol<input id="mb-c" value="${esc(cur())}"></label></div><div class="muted" style="font-size:12px">Leave the budget empty to turn it off.</div>
       <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
       d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=()=>{close();store.moneySettings({budget:num($('#mb-b',d).value),currency:$('#mb-c',d).value.trim()||'$'})}});return}
   if(a==='money-cats'){
