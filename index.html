@@ -51,6 +51,11 @@ nav .k{font:11px var(--mono);color:var(--tx4)}
 .mini.paused{color:var(--tx3)}
 .side-foot{margin-top:auto;padding:0 12px;display:flex;flex-direction:column;gap:14px}
 .goal{cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.quote{cursor:pointer;position:relative;padding:4px 0 2px 14px;border-left:2px solid var(--tx3);font:500 15px/1.5 'Chakra Petch',sans-serif;color:var(--tx3);letter-spacing:.005em;text-wrap:pretty}
+.quote:hover{border-left-color:var(--tx)}
+.quote b{font-weight:700;color:var(--tx)}
+.mquote{display:none}
+@media (max-width:700px){.mquote{display:block;margin:0 0 18px;font-size:14px}}
 .goal .v{font:600 28px 'Chakra Petch',sans-serif;letter-spacing:-.02em}
 .goal input{font:300 22px var(--mono);padding:2px 6px;width:110px}
 .sync{font-size:11.5px;color:var(--tx4);display:flex;align-items:center;gap:7px}
@@ -949,6 +954,14 @@ function render(){
   rendering=false;
 }
 
+const QUOTE_DEFAULT='I may not be the smartest, the richest, or the most talented person in the room, but I’ll make sure damn well I’m the most hardworking.';
+function quoteHtml(cls){const q=(S.settings.quote??QUOTE_DEFAULT).trim();if(!q)return `<div class="quote ${cls||''}" data-act="quote-edit" style="color:var(--tx4);font-size:13px">Add a quote</div>`;
+  const i=q.search(/,\s*but\s/i);const body=i>0?`${esc(q.slice(0,i+1))} <b>${esc(q.slice(i+1).trim())}</b>`:`<b>${esc(q)}</b>`;
+  return `<div class="quote ${cls||''}" data-act="quote-edit" title="Click to edit">${body}</div>`}
+function quoteModal(){modal(`<div class="eyebrow">Your quote</div><textarea id="q-t" rows="4" style="font:500 15px/1.5 'Chakra Petch',sans-serif">${esc((S.settings.quote??QUOTE_DEFAULT))}</textarea>
+  <div class="muted" style="font-size:12px">The part after “, but” shows brighter.</div>
+  <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+  d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=()=>{const v=$('#q-t',d).value.trim();close();store.settings({quote:v})};setTimeout(()=>$('#q-t',d).focus(),30)})}
 function renderSide(){
   const t=T(),ms=elapsed();
   const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['body','Fitness','Fitness'],['money','Money','Money']];
@@ -957,10 +970,7 @@ function renderSide(){
   return `<div class="brand"><i></i>Lock in</div>
   <nav>${nav.map(([k,l,sl])=>`${k==='body'?'<div class="navsep"></div>':''}<a href="#${k}" class="${view===k?'on':''}"><span class="nl">${l}</span><span class="ns">${sl}</span>${k==='focus'&&ms>0?`<span class="mini ${t.running?'':'paused'}" data-clock-mini></span>`:''}</a>`).join('')}</nav>
   <div class="side-foot">
-    <div class="goal" data-act="goal-edit" title="Click to edit">
-      <span class="eyebrow">GPA goal</span>
-      ${editingGoal?`<input data-k="goal" data-commit="goal" data-autofocus value="${esc(goal)}">`:`<span class="v">${goal?esc(goal):'<span class="muted" style="font-size:14px">set one</span>'}</span>`}
-    </div>
+    ${quoteHtml()}
     ${sync}
   </div>`;
 }
@@ -981,7 +991,7 @@ function renderFocus(){
   const todayList=[...evs(tk).map(evItem),...dues(d=>d<=tk).sort((a,b)=>a.due.localeCompare(b.due)).map(dueItem)].join('');
   const sess=S.sessions.filter(s=>s.day===tk).sort((a,b)=>a.start-b.start);
   const tot=sess.reduce((a,s)=>a+(s.durSec||0),0);
-  return `
+  return `${quoteHtml('mquote')}
   <div class="focus">
     <div class="eyebrow">${fmtDay(today)}</div>
     <div class="clock ${st}" data-clock>00:00:00</div>
@@ -2367,6 +2377,7 @@ document.addEventListener('click',async e=>{
     case 'timer-pause':pauseTimer();break;
     case 'timer-finish':finishTimer();break;
     case 'timer-reset':if(await confirmBox('Reset the timer without logging?','Reset'))resetTimer();break;
+    case 'quote-edit':quoteModal();break;
     case 'goal-edit':if(!editingGoal){editingGoal=true;render()}break;
     case 'folder-open':curFolder=id;showDone=false;try{localStorage.setItem('lockin-folder',id)}catch(_){}render();break;
     case 'folder-new':{const nid=uid();curFolder=nid;editingFolder=nid;selectNext=true;await store.put('folders',nid,{name:'Untitled',createdAt:Date.now()});render();break}

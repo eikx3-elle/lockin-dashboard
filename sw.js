@@ -1,7 +1,7 @@
 // Lock In service worker: keeps the app available offline.
 // Always asks the network for the newest version first (bypassing the browser cache),
 // and only falls back to the saved copy when offline.
-const CACHE = 'lockin-2026-11-20-1';
+const CACHE = 'lockin-2026-11-20-2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => fetch(u, { cache: 'no-store' }).then(r => c.put(u, r)).catch(() => {})))));
