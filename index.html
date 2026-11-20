@@ -437,7 +437,7 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .qcard{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--s1);cursor:pointer;font:600 16px/1.35 'Chakra Petch',sans-serif}
 .qcard .qm{display:block;margin-top:8px;font:500 11px var(--mono);color:var(--tx4)}
 .qnote .qq{font:700 26px/1.25 'Chakra Petch',sans-serif;letter-spacing:-.01em;white-space:pre-wrap}
-.qnote textarea.fn{min-height:260px;font:400 15px/1.6 'Chakra Petch',sans-serif;resize:vertical}
+.qnote textarea.qfn{min-height:260px;font:400 15px/1.6 'Chakra Petch',sans-serif;resize:vertical}
 .qmode{display:none}
 @media (max-width:700px){.qmode{display:inline-flex}.qnote .qq{font-size:21px}}
 /* training log */
@@ -1051,7 +1051,7 @@ function qOpen(q){
   modal(`<div class="qnote" style="display:flex;flex-direction:column;gap:16px">
     <div class="row" style="justify-content:space-between;align-items:center"><span class="eyebrow">${d0?'Learnt '+fmtDay(d0)+' '+d0.getFullYear():''}${q.by?' · '+esc(q.by):''}</span><span class="row" style="gap:6px"><button class="ghost" data-a="edit">Edit quote</button><button class="ghost danger-t" data-a="del">Delete</button></span></div>
     <div class="qq">${esc(q.text)}</div>
-    <label style="gap:8px"><span class="eyebrow">Field notes</span><textarea class="fn" id="qn-n" placeholder="How am I going to apply this? Where did I see it, why did it hit, what will I do differently?">${esc(q.notes||'')}</textarea></label>
+    <label style="gap:8px"><span class="eyebrow">Field notes</span><textarea class="qfn" id="qn-n" placeholder="How am I going to apply this? Where did I see it, why did it hit, what will I do differently?">${esc(q.notes||'')}</textarea></label>
     <div class="row-end"><span class="muted" id="qn-st" style="font-size:12px;flex:1">${q.notesAt?'Last edited '+fmtShort(dayKey(new Date(q.notesAt))):''}</span><button class="btn pri" data-a="done">Done</button></div></div>`,(d,close)=>{
     const ta=$('#qn-n',d);let saved=q.notes||'',t=null;
     const save=()=>{const v=ta.value;if(v===saved)return;saved=v;store.patch('quotes',q.id,{notes:v,notesAt:Date.now()});const st=$('#qn-st',d);if(st)st.textContent='Saved'};
