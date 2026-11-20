@@ -406,6 +406,30 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .mamt{font:13px var(--mono);white-space:nowrap}
 @media (max-width:980px){#app{grid-template-columns:168px 1fr}main{padding:30px 24px 80px}.mstats,.stats{grid-template-columns:1fr 1fr}.fgrid,.bgrid,.mgrid,.pgrid,.plan,.tgrid{grid-template-columns:1fr}.lists{grid-template-columns:180px 1fr}.week{overflow-x:auto}.hab{grid-template-columns:18px 1fr}.hab .hcells,.hab .hhist{grid-column:2}}
 /* fitness tabs */
+/* quote board */
+.qbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.qwrap{position:relative;width:100%;border:1px solid var(--line);border-radius:14px;overflow:hidden;background-color:#0c0c0c;background-image:radial-gradient(#1d1d1d 1px,transparent 1px);background-size:22px 22px}
+.qcanvas{position:absolute;left:0;top:0;width:1000px;transform-origin:0 0}
+.qbox{position:absolute;padding:10px 12px;border:1px solid transparent;border-radius:10px;cursor:grab;user-select:none;touch-action:none;color:var(--tx);font-family:'Chakra Petch',sans-serif;font-weight:600;line-height:1.25;letter-spacing:-.005em;text-wrap:pretty}
+.qbox:hover,.qbox.act{border-color:var(--line2);background:rgba(16,16,16,.96);z-index:3}
+.qbox.dragging{cursor:grabbing;border-color:var(--tx3);background:rgba(24,24,24,.9);z-index:5}
+.qbox.c2{color:var(--tx2)}.qbox.c3{color:var(--tx3)}
+.qbox .qm{display:block;margin-top:.55em;font:500 11px var(--mono);color:var(--tx4);letter-spacing:.04em;text-transform:none}
+.qbox .qm .nb{color:var(--tx3)}
+.qbox .qtools{position:absolute;top:-34px;right:-1px;display:none;gap:4px;background:var(--s2);border:1px solid var(--line2);border-radius:9px;padding:3px}
+.qbox:hover .qtools,.qbox.act .qtools{display:flex}
+.qtools span{font:600 12px var(--mono);color:var(--tx2);padding:4px 8px;border-radius:6px;cursor:pointer;line-height:1}
+.qtools span:hover{background:var(--s3);color:var(--tx)}
+.qbox .qrs{position:absolute;right:-6px;top:50%;width:12px;height:28px;margin-top:-14px;border-radius:6px;background:var(--s3);border:1px solid var(--line2);cursor:ew-resize;display:none;touch-action:none}
+.qbox:hover .qrs,.qbox.act .qrs{display:block}
+.qempty{position:absolute;left:0;right:0;top:38%;text-align:center;color:var(--tx4);font-size:14px;line-height:1.6}
+.qlist{display:flex;flex-direction:column;gap:10px}
+.qcard{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--s1);cursor:pointer;font:600 16px/1.35 'Chakra Petch',sans-serif}
+.qcard .qm{display:block;margin-top:8px;font:500 11px var(--mono);color:var(--tx4)}
+.qnote .qq{font:700 26px/1.25 'Chakra Petch',sans-serif;letter-spacing:-.01em;white-space:pre-wrap}
+.qnote textarea.fn{min-height:260px;font:400 15px/1.6 'Chakra Petch',sans-serif;resize:vertical}
+.qmode{display:none}
+@media (max-width:700px){.qmode{display:inline-flex}.qnote .qq{font-size:21px}}
 /* training log */
 .wtypes{display:flex;flex-wrap:wrap;gap:6px}
 .wtypes span{font-size:13px;color:var(--tx3);border:1px solid var(--line2);border-radius:999px;padding:6px 13px;cursor:pointer;user-select:none}
@@ -531,7 +555,7 @@ button.eat{font:inherit;font-size:12.5px;padding:5px 14px}
   #side{position:fixed;left:0;right:0;bottom:0;z-index:40;flex-direction:row;padding:6px 4px calc(6px + env(safe-area-inset-bottom));gap:0;border-right:0;border-top:1px solid var(--line);background:rgba(10,10,10,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   #side .brand,#side .side-foot,#side .navsep,#side .mini{display:none}
   nav{flex-direction:row;flex:1;gap:0}
-  nav a{flex:1;flex-direction:column;justify-content:center;padding:9px 2px;border-radius:10px;font-size:11.5px;text-align:center}
+  nav a{flex:1;flex-direction:column;justify-content:center;padding:9px 1px;border-radius:10px;font-size:10.5px;text-align:center;min-width:0}
   nav a.on{background:var(--s3)}
   .nl{display:none}.ns{display:inline}
   .mhead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 2px 14px}
@@ -638,7 +662,7 @@ const todayKey=()=>dayKey(new Date());
 const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
 /* ---------- state ---------- */
-const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],groceries:[],settings:{},bodySettings:{},moneySettings:{}};
+const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],quotes:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],groceries:[],settings:{},bodySettings:{},moneySettings:{}};
 const COLS=['sessions','folders','tasks','events'];
 let mode='starting';
 const hasFS=typeof window.showSaveFilePicker==='function'&&typeof window.showOpenFilePicker==='function';
@@ -655,7 +679,7 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 async function safe(p){try{return await p}catch(e){console.error(e);toast(e&&e.code==='quota_exceeded'?'Storage is full':'Couldn’t save, try again');}}
 
 /* ---------- storage: two files (study + body) ---------- */
-const STUDY_COLS=['sessions','folders','tasks','events','plans','habits'];
+const STUDY_COLS=['sessions','folders','tasks','events','plans','habits','quotes'];
 const BODY_COLS=['food','meals','workouts','weights','ingredients','recipes','weekplans','shops'];
 const mkFile=(name,idbKey,cols,sk,suggested)=>({name,idbKey,cols,sk,suggested,handle:null,pending:null,lastWrite:0,saving:false,dirty:false,ops:[],timer:null,state:''});
 const FILES={study:mkFile('study','file',STUDY_COLS,'settings','lockin-work.json'),body:mkFile('body','bodyfile',BODY_COLS,'bodySettings','lockin-fitness.json'),money:mkFile('money','moneyfile',['expenses','groceries'],'moneySettings','lockin-money.json')};
@@ -951,6 +975,7 @@ function render(){
   else{const af=app.querySelector('[data-autofocus]');if(af){af.focus();try{if(selectNext){af.select();selectNext=false}else{const L=af.value.length;af.setSelectionRange(L,L)}}catch(e){}}}
   const ms=elapsed();document.querySelectorAll('[data-clock]').forEach(e=>e.textContent=fmtClock(ms));
   document.querySelectorAll('[data-clock-mini]').forEach(e=>e.textContent=ms>0?fmtClock(ms):'');
+  if(view==='quotes')qFit();
   rendering=false;
 }
 
@@ -962,9 +987,104 @@ function quoteModal(){modal(`<div class="eyebrow">Your quote</div><textarea id="
   <div class="muted" style="font-size:12px">The part after “, but” shows brighter.</div>
   <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
   d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=()=>{const v=$('#q-t',d).value.trim();close();store.settings({quote:v})};setTimeout(()=>$('#q-t',d).focus(),30)})}
+/* ---------- quote board ---------- */
+let qYear=null,qSel=null,qPhoneMode='list';
+const QW=1000;
+function qYears(){const ys=new Set([new Date().getFullYear(),...S.quotes.map(q=>q.year),...(((S.settings||{}).quoteYears)||[])]);return [...ys].filter(Boolean).sort((a,b)=>b-a)}
+function qOfYear(y){return S.quotes.filter(q=>q.year===y).sort((a,b)=>(a.z||a.createdAt||0)-(b.z||b.createdAt||0))}
+function qMeta(q){const d=q.date?fromKey(q.date):null;return `${q.by?'— '+esc(q.by)+' · ':''}${d?d.getDate()+' '+MON[d.getMonth()]:''}${q.notes&&q.notes.trim()?' · <span class="nb">notes ✎</span>':''}`}
+function renderQuotes(){
+  const ys=qYears();if(!qYear||!ys.includes(qYear))qYear=new Date().getFullYear();
+  const L=qOfYear(qYear);
+  const H=Math.max(720,...L.map(q=>(q.y||0)+qEstH(q)+160));
+  const isPhone=window.innerWidth<=700;
+  const tabs=`<div class="ftabs">${ys.map(y=>`<span class="${y===qYear?'on':''}" data-act="q-year" data-y="${y}">${y}</span>`).join('')}<span data-act="q-addyear" title="Add a board for another year" style="color:var(--tx4)">+ Year</span></div>`;
+  const boxes=L.map(q=>`<div class="qbox c${q.tone||1} ${qSel===q.id?'act':''}" data-qid="${q.id}" style="left:${q.x||0}px;top:${q.y||0}px;width:${q.w||360}px;font-size:${q.size||28}px">${esc(q.text).replace(/\n/g,'<br>')}<span class="qm">${qMeta(q)}</span>
+      <div class="qtools"><span data-qt="dn" title="Smaller">A−</span><span data-qt="up" title="Bigger">A+</span><span data-qt="tone" title="Brightness">◐</span><span data-qt="open" title="Open notes">Open</span></div><div class="qrs" data-qt="rs" title="Drag to resize"></div></div>`).join('');
+  const board=`<div class="qwrap" id="qwrap" data-h="${H}"><div class="qcanvas" id="qcanvas" style="height:${H}px">${boxes}</div>${L.length?'':`<div class="qempty">Your ${qYear} board is empty.<br>Add a quote that stuck with you this year.</div>`}</div>`;
+  const list=`<div class="qlist">${L.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(q=>`<div class="qcard" data-act="q-open" data-id="${q.id}">${esc(q.text).replace(/\n/g,'<br>')}<span class="qm">${qMeta(q)}</span></div>`).join('')||`<div class="empty">No quotes for ${qYear} yet.</div>`}</div>`;
+  return `<div class="head"><div class="l"><span class="eyebrow">Quote board · ${L.length} ${L.length===1?'quote':'quotes'}</span><h1>Words that stuck</h1></div></div>
+  ${tabs}
+  <div class="qbar"><button class="btn pri sm" data-act="q-add">+ Add quote</button><span class="muted" style="font-size:12px;flex:1">${isPhone&&qPhoneMode==='list'?'Tap a quote to open its notes.':'Drag to move · handle on the right to resize · A−/A+ for size · click to open notes'}</span>
+    <div class="seg qmode"><button class="btn sm ${qPhoneMode==='list'?'pri':''}" data-act="q-mode" data-m="list">List</button><button class="btn sm ${qPhoneMode==='board'?'pri':''}" data-act="q-mode" data-m="board">Board</button></div></div>
+  ${isPhone&&qPhoneMode==='list'?list:board}`;
+}
+function qEstH(q){const s=q.size||28,w=(q.w||360)-24,cpl=Math.max(6,w/(s*.52)),lines=String(q.text||'').split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil(l.length/cpl)),0);return lines*s*1.25+44}
+function qFit(){const w=$('#qwrap'),c=$('#qcanvas');if(!w||!c)return;const sc=w.clientWidth/QW;c.style.transform=`scale(${sc})`;w.style.height=(+w.dataset.h*sc)+'px'}
+window.addEventListener('resize',()=>{if(view==='quotes')qFit()});
+function qFree(y,w,hh){const R=qOfYear(y).map(q=>{const b=document.querySelector(`.qbox[data-qid="${q.id}"]`);return {x:q.x||0,y:q.y||0,w:q.w||360,h:b?b.offsetHeight:qEstH(q)}});
+  const gap=24;for(let yy=30;yy<6000;yy+=20)for(let x=30;x+w<=QW-20;x+=20){if(!R.some(r=>x<r.x+r.w+gap&&x+w+gap>r.x&&yy<r.y+r.h+gap&&yy+hh+gap>r.y))return {x,y:yy}}return {x:30,y:30}}
+function qModal(q){const isNew=!q;q=q||{};const today=todayKey(),defDate=qYear===new Date().getFullYear()?today:`${qYear}-01-01`;
+  modal(`<div class="eyebrow">${isNew?'Add a quote':'Edit quote'}</div>
+    <textarea id="qa-t" rows="4" placeholder="The quote" style="font:600 17px/1.4 'Chakra Petch',sans-serif">${esc(q.text||'')}</textarea>
+    <div class="row"><label>By (optional)<input id="qa-b" value="${esc(q.by||'')}" placeholder="Who said it, or where you saw it"></label><label>Date you learnt it<input type="date" id="qa-d" value="${q.date||defDate}"></label></div>
+    <label>Size<div class="feel" id="qa-s">${[[18,'S'],[24,'M'],[32,'L'],[44,'XL'],[60,'XXL']].map(([v,l])=>`<span data-v="${v}" class="${(q.size||24)===v?'on':''}">${l}</span>`).join('')}</div></label>
+    <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">${isNew?'Add to board':'Save'}</button></div>`,(d,close)=>{
+    let size=q.size||24;d.querySelectorAll('#qa-s span').forEach(s=>s.onclick=()=>{size=+s.dataset.v;d.querySelectorAll('#qa-s span').forEach(x=>x.classList.toggle('on',x===s))});
+    d.querySelector('[data-a=c]').onclick=close;
+    d.querySelector('[data-a=s]').onclick=()=>{const text=$('#qa-t',d).value.trim();if(!text){$('#qa-t',d).focus();return}
+      const date=$('#qa-d',d).value||defDate,year=+date.slice(0,4),by=$('#qa-b',d).value.trim();close();
+      if(isNew){const w=Math.min(620,Math.max(240,Math.round(Math.sqrt(text.length)*size*1.15))),pos=qFree(year,w,qEstH({text,size,w}));store.put('quotes',uid(),{text,by,date,year,size,w,x:pos.x,y:pos.y,tone:1,notes:'',z:Date.now(),createdAt:Date.now()});qYear=year;render()}
+      else{store.patch('quotes',q.id,{text,by,date,year,size});if(year!==qYear){qYear=year;render()}}};
+    setTimeout(()=>$('#qa-t',d).focus(),30);
+  });
+}
+function qOpen(q){
+  const d0=q.date?fromKey(q.date):null;
+  modal(`<div class="qnote" style="display:flex;flex-direction:column;gap:16px">
+    <div class="row" style="justify-content:space-between;align-items:center"><span class="eyebrow">${d0?'Learnt '+fmtDay(d0)+' '+d0.getFullYear():''}${q.by?' · '+esc(q.by):''}</span><span class="row" style="gap:6px"><button class="ghost" data-a="edit">Edit quote</button><button class="ghost danger-t" data-a="del">Delete</button></span></div>
+    <div class="qq">${esc(q.text)}</div>
+    <label style="gap:8px"><span class="eyebrow">Field notes</span><textarea class="fn" id="qn-n" placeholder="How am I going to apply this? Where did I see it, why did it hit, what will I do differently?">${esc(q.notes||'')}</textarea></label>
+    <div class="row-end"><span class="muted" id="qn-st" style="font-size:12px;flex:1">${q.notesAt?'Last edited '+fmtShort(dayKey(new Date(q.notesAt))):''}</span><button class="btn pri" data-a="done">Done</button></div></div>`,(d,close)=>{
+    const ta=$('#qn-n',d);let saved=q.notes||'',t=null;
+    const save=()=>{const v=ta.value;if(v===saved)return;saved=v;store.patch('quotes',q.id,{notes:v,notesAt:Date.now()});const st=$('#qn-st',d);if(st)st.textContent='Saved'};
+    ta.oninput=()=>{clearTimeout(t);t=setTimeout(save,900)};ta.onblur=save;
+    const fin=()=>{clearTimeout(t);save();close()};
+    d.querySelector('[data-a=done]').onclick=fin;
+    d.querySelector('[data-a=edit]').onclick=()=>{clearTimeout(t);save();close();qModal(S.quotes.find(x=>x.id===q.id)||q)};
+    d.querySelector('[data-a=del]').onclick=async()=>{clearTimeout(t);save();close();if(await confirmBox('Delete this quote and its notes?'))store.del('quotes',q.id)};
+    setTimeout(()=>{ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length)},40);
+  },'x');
+}
+function quoteAct(a,el){
+  if(a==='q-year'){qYear=+el.dataset.y;qSel=null;render();return}
+  if(a==='q-add'){qModal();return}
+  if(a==='q-mode'){qPhoneMode=el.dataset.m;render();return}
+  if(a==='q-open'){const q=S.quotes.find(x=>x.id===el.dataset.id);if(q)qOpen(q);return}
+  if(a==='q-addyear'){modal(`<div class="eyebrow">Add a year</div><input class="big" id="qy" inputmode="numeric" value="${new Date().getFullYear()-1}"><div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Add</button></div>`,(d,close)=>{
+    const go=()=>{const y=parseInt($('#qy',d).value);if(!(y>1900&&y<3000))return;close();const cur=((S.settings||{}).quoteYears)||[];if(!cur.includes(y))store.settings({quoteYears:[...cur,y]});qYear=y;render()};
+    d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=go;$('#qy',d).addEventListener('keydown',e=>{if(e.key==='Enter')go()});setTimeout(()=>$('#qy',d).select(),30)});return}
+}
+const QUOTE_ACTS=['q-year','q-add','q-mode','q-open','q-addyear'];
+// board interactions: drag to move, handle to resize, tools, click to open
+(()=>{let g=null;
+  const scale=()=>{const w=$('#qwrap');return w?w.clientWidth/QW:1};
+  document.addEventListener('pointerdown',e=>{if(view!=='quotes')return;const box=e.target.closest&&e.target.closest('.qbox');
+    if(!box){if(qSel&&e.target.closest&&e.target.closest('#qwrap')){qSel=null;document.querySelectorAll('.qbox.act').forEach(b=>b.classList.remove('act'))}return}
+    const q=S.quotes.find(x=>x.id===box.dataset.qid);if(!q)return;const tool=e.target.closest('[data-qt]');
+    if(tool&&tool.dataset.qt!=='rs')return;// tool buttons handled on click
+    e.preventDefault();
+    g={box,q,mode:tool?'rs':'mv',x0:e.clientX,y0:e.clientY,sx:q.x||0,sy:q.y||0,sw:q.w||360,on:false,pid:e.pointerId};
+    try{box.setPointerCapture(e.pointerId)}catch(_){}
+  });
+  document.addEventListener('pointermove',e=>{if(!g||e.pointerId!==g.pid)return;const sc=scale(),dx=(e.clientX-g.x0)/sc,dy=(e.clientY-g.y0)/sc;
+    if(!g.on){if(Math.hypot(e.clientX-g.x0,e.clientY-g.y0)<4)return;g.on=true;g.box.classList.add('dragging')}
+    if(g.mode==='mv'){g.nx=Math.max(0,Math.min(QW-g.box.offsetWidth,g.sx+dx));g.ny=Math.max(0,g.sy+dy);g.box.style.left=g.nx+'px';g.box.style.top=g.ny+'px';
+      const c=$('#qcanvas'),w=$('#qwrap'),need=g.ny+g.box.offsetHeight+160;if(c&&need>parseFloat(c.style.height)){c.style.height=need+'px';w.dataset.h=need;qFit()}}
+    else{g.nw=Math.max(140,Math.min(QW-(g.q.x||0)-10,g.sw+dx));g.box.style.width=g.nw+'px'}});
+  const up=e=>{if(!g||e.pointerId!==g.pid)return;const d=g;g=null;d.box.classList.remove('dragging');
+    if(!d.on){if(e.type==='pointerup'&&d.mode==='mv'){const q=d.q;if(qSel===q.id){qOpen(q)}else{qSel=q.id;document.querySelectorAll('.qbox.act').forEach(b=>b.classList.remove('act'));d.box.classList.add('act');if(!window.matchMedia('(hover:none)').matches)qOpen(q)}}return}
+    if(d.mode==='mv')store.patch('quotes',d.q.id,{x:Math.round(d.nx),y:Math.round(d.ny),z:Date.now()});else store.patch('quotes',d.q.id,{w:Math.round(d.nw)})};
+  document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);
+  document.addEventListener('click',e=>{if(view!=='quotes')return;const t=e.target.closest&&e.target.closest('.qtools [data-qt]');if(!t)return;e.stopPropagation();
+    const box=t.closest('.qbox'),q=S.quotes.find(x=>x.id===box.dataset.qid);if(!q)return;qSel=q.id;const k=t.dataset.qt;
+    if(k==='up'||k==='dn'){const s=Math.max(12,Math.min(110,(q.size||28)+(k==='up'?(q.size>=40?4:2):-(q.size>40?4:2))));store.patch('quotes',q.id,{size:s})}
+    else if(k==='tone')store.patch('quotes',q.id,{tone:((q.tone||1)%3)+1});
+    else if(k==='open')qOpen(q)},true);
+})();
 function renderSide(){
   const t=T(),ms=elapsed();
-  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['body','Fitness','Fitness'],['money','Money','Money']];
+  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['quotes','Quote board','Quotes'],['body','Fitness','Fitness'],['money','Money','Money']];
   const goal=S.settings.gpaGoal||'';
   const sync=mode==='file'?`<div class="filebox" data-act="switch-file" title="${ghMode?'Sync status':'Click to switch or reconnect your data file'}"><span class="fn">${esc(ghMode?'GitHub sync':FILES.study.handle.name)}</span><div class="sync live"><i></i><span data-save="study">${FILES.study.state||'Saved'}</span></div></div>`:mode==='local'?'<div class="sync"><i></i>Saved in this browser only</div>':'';
   return `<div class="brand"><i></i>Lock in</div>
@@ -2337,7 +2457,7 @@ function habitDetail(hb){
   },'x');
 }
 const HAB_ACTS=['hab-archtoggle','hab-add','hab-toggle','hab-edit','hab-detail'];
-const VIEWS={habits:renderHabits,focus:renderFocus,lists:renderLists,week:renderWeek,log:renderLog,progress:()=>renderProgress()+`<div style="margin-top:48px"></div>`+renderLog(),body:renderBody,money:renderMoney};
+const VIEWS={quotes:renderQuotes,habits:renderHabits,focus:renderFocus,lists:renderLists,week:renderWeek,log:renderLog,progress:()=>renderProgress()+`<div style="margin-top:48px"></div>`+renderLog(),body:renderBody,money:renderMoney};
 
 /* ---------- actions ---------- */
 function commit(el){
@@ -2356,6 +2476,7 @@ document.addEventListener('click',async e=>{
   if(BODY_ACTS.includes(a)){e.stopPropagation();bodyAct(a,el);return}
   if(HAB_ACTS.includes(a)){habitAct(a,el);return}
   if(FIT_ACTS.includes(a)){fitAct(a,el);return}
+  if(QUOTE_ACTS.includes(a)){quoteAct(a,el);return}
   if(GRO_ACTS.includes(a)){e.stopPropagation();groAct(a,el);return}
   if(MONEY_ACTS.includes(a)){moneyAct(a,el);return}
   if(a==='plan-prev'){planOff--;render();return}
