@@ -972,7 +972,14 @@ function eventModal(ev,date){
 }
 
 /* ---------- render ---------- */
+let renderLater=false;
 function render(){
+  // While you're typing in the day plan, don't rebuild the page: replacing the textarea makes phone keyboards
+  // drop out of number / caps mode. Update the sidebar and timeline only, and do the full render when you leave the box.
+  const ae=document.activeElement;
+  if(ae&&ae.dataset&&ae.dataset.plan&&document.getElementById('main').contains(ae)){
+    renderLater=true;$('#side').innerHTML=renderSide();const w=$('#tl-wrap');if(w)w.innerHTML=timelineHtml(ae.dataset.plan);return}
+  renderLater=false;
   rendering=true;
   const app=$('#app'),a=document.activeElement;let keep=null;
   if(a&&a.dataset&&a.dataset.k&&app.contains(a))keep={k:a.dataset.k,v:a.value,s:a.selectionStart,e:a.selectionEnd,t:a.scrollTop};
@@ -2039,14 +2046,16 @@ function renderPlan(){
     <div id="tl-wrap">${timelineHtml(k)}</div>
   </div>`;
 }
-let planSaveT=null;
+let planSaveT=null,planDirty=false;
+document.addEventListener('focusout',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.plan){clearTimeout(planSaveT);const k=t.dataset.plan,text=t.value,plan=S.plans.find(p=>p.id===k);
+  const flush=()=>{if(planDirty&&(text.trim()||plan)){planDirty=false;store.put('plans',k,{day:k,text,updatedAt:Date.now()})}else if(renderLater)render()};setTimeout(flush,0)}});
 document.addEventListener('input',e=>{
   const t=e.target;if(!t.dataset||!t.dataset.plan)return;
   const k=t.dataset.plan,text=t.value;
   const plan=S.plans.find(p=>p.id===k);
   if(plan)plan.text=text;else S.plans.push({id:k,day:k,text,updatedAt:Date.now()});
   const w=$('#tl-wrap');if(w)w.innerHTML=timelineHtml(k);
-  clearTimeout(planSaveT);planSaveT=setTimeout(()=>{if(text.trim()||plan)store.put('plans',k,{day:k,text,updatedAt:Date.now()})},500);
+  planDirty=true;clearTimeout(planSaveT);planSaveT=setTimeout(()=>{if(text.trim()||plan){planDirty=false;store.put('plans',k,{day:k,text,updatedAt:Date.now()})}},500);
 });
 
 /* habits */
