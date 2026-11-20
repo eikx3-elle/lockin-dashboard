@@ -57,7 +57,8 @@ nav .k{font:11px var(--mono);color:var(--tx4)}
 .mquote{display:none}
 @media (max-width:700px){.mquote{display:block;margin:0 0 18px;font-size:14px}}
 .goal .v{font:600 28px 'Chakra Petch',sans-serif;letter-spacing:-.02em}
-.goal input{font:300 22px var(--mono);padding:2px 6px;width:110px}
+.goal .v.long{font-size:18px;line-height:1.3;letter-spacing:-.005em;overflow-wrap:anywhere}
+.goal input{font:500 15px 'Chakra Petch',sans-serif;padding:6px 8px;width:100%}
 .sync{font-size:11.5px;color:var(--tx4);display:flex;align-items:center;gap:7px}
 .sync i{width:6px;height:6px;border-radius:50%;background:var(--tx4);display:inline-block}
 .sync.live i{background:var(--tx2)}
@@ -1090,7 +1091,10 @@ function renderSide(){
   return `<div class="brand"><i></i>Lock in</div>
   <nav>${nav.map(([k,l,sl])=>`${k==='body'?'<div class="navsep"></div>':''}<a href="#${k}" class="${view===k?'on':''}"><span class="nl">${l}</span><span class="ns">${sl}</span>${k==='focus'&&ms>0?`<span class="mini ${t.running?'':'paused'}" data-clock-mini></span>`:''}</a>`).join('')}</nav>
   <div class="side-foot">
-    ${quoteHtml()}
+    <div class="goal" data-act="goal-edit" title="Click to edit">
+      <span class="eyebrow">Goal</span>
+      ${editingGoal?`<input data-k="goal" data-commit="goal" data-autofocus value="${esc(goal)}" placeholder="Your main goal right now">`:`<span class="v ${goal.length>8?'long':''}">${goal?esc(goal):'<span class="muted" style="font-size:14px">set one</span>'}</span>`}
+    </div>
     ${sync}
   </div>`;
 }
@@ -1111,7 +1115,7 @@ function renderFocus(){
   const todayList=[...evs(tk).map(evItem),...dues(d=>d<=tk).sort((a,b)=>a.due.localeCompare(b.due)).map(dueItem)].join('');
   const sess=S.sessions.filter(s=>s.day===tk).sort((a,b)=>a.start-b.start);
   const tot=sess.reduce((a,s)=>a+(s.durSec||0),0);
-  return `${quoteHtml('mquote')}
+  return `
   <div class="focus">
     <div class="eyebrow">${fmtDay(today)}</div>
     <div class="clock ${st}" data-clock>00:00:00</div>
