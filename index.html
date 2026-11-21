@@ -91,6 +91,8 @@ h2{font-size:13px;font-weight:500;color:var(--tx2)}
 
 /* focus */
 .focus{display:flex;flex-direction:column;align-items:center;padding:40px 0 44px;gap:14px}
+.dg{display:inline-block;width:.6em;text-align:center}
+.cl{display:inline-block;width:.28em;text-align:center;position:relative;top:-.06em}
 .clock{font:700 120px/1 'Chakra Petch',sans-serif;letter-spacing:-.02em;font-feature-settings:'tnum';font-variant-numeric:tabular-nums;color:var(--tx);transition:color .2s}
 .clock.idle{color:var(--tx4)}
 .clock.paused{color:var(--tx3)}
@@ -757,6 +759,9 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const fmtDur=s=>{const t=Math.round((s||0)/60);const h=Math.floor(t/60),m=t%60;return h?(m?`${h}h ${m}m`:`${h}h`):`${m}m`};
 const fmtH=s=>{const h=(s||0)/3600;if(h>0&&h<0.05)return '<0.1';return h>=10?h.toFixed(0):h.toFixed(1).replace(/\.0$/,'')};
 const fmtClock=ms=>{const t=Math.floor(ms/1000);return pad(Math.floor(t/3600))+':'+pad(Math.floor(t%3600/60))+':'+pad(t%60)};
+// Chakra Petch has no tabular digits, so each digit gets a fixed-width box; otherwise the clock wobbles as numbers change
+const clockHtml=ms=>fmtClock(ms).split('').map(c=>c===':'?'<span class="cl">:</span>':`<span class="dg">${c}</span>`).join('');
+function setClock(e,ms){const s=fmtClock(ms);if(e.dataset.v===s)return;e.dataset.v=s;e.innerHTML=clockHtml(ms)}
 const fmtTime=ts=>{const d=new Date(ts);return pad(d.getHours())+':'+pad(d.getMinutes())};
 const DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -955,8 +960,8 @@ function finishTimer(){
 function toggleTimer(){const t=T();t.running?pauseTimer():startTimer()}
 setInterval(()=>{
   const ms=elapsed(),t=T();
-  document.querySelectorAll('[data-clock]').forEach(e=>e.textContent=fmtClock(ms));
-  document.querySelectorAll('[data-clock-mini]').forEach(e=>e.textContent=ms>0?fmtClock(ms):'');
+  document.querySelectorAll('[data-clock]').forEach(e=>setClock(e,ms));
+  document.querySelectorAll('[data-clock-mini]').forEach(e=>{if(ms>0)setClock(e,ms);else{e.textContent='';e.dataset.v=''}});
 },250);
 
 /* ---------- modal ---------- */
@@ -1085,8 +1090,8 @@ function render(){
   Object.entries(vals).forEach(([k,v])=>{const n=app.querySelector(`[data-k="${k}"]`);if(n&&!n.value)n.value=v});
   if(keep){const n=app.querySelector(`[data-k="${keep.k}"]`);if(n){n.value=keep.v;n.focus();try{n.setSelectionRange(keep.s,keep.e)}catch(e){}n.scrollTop=keep.t||0}}
   else{const af=app.querySelector('[data-autofocus]');if(af){af.focus();try{if(selectNext){af.select();selectNext=false}else{const L=af.value.length;af.setSelectionRange(L,L)}}catch(e){}}}
-  const ms=elapsed();document.querySelectorAll('[data-clock]').forEach(e=>e.textContent=fmtClock(ms));
-  document.querySelectorAll('[data-clock-mini]').forEach(e=>e.textContent=ms>0?fmtClock(ms):'');
+  const ms=elapsed();document.querySelectorAll('[data-clock]').forEach(e=>setClock(e,ms));
+  document.querySelectorAll('[data-clock-mini]').forEach(e=>{if(ms>0)setClock(e,ms)});
   if(view==='quotes')qFit();
   rendering=false;
 }
