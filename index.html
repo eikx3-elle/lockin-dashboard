@@ -437,6 +437,16 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .blist .bl .n{font:11px var(--mono);color:var(--tx4);text-align:right}
 .blist .bl .tt{font-weight:600}
 .blist .bl .au{font-size:12.5px;color:var(--tx3)}
+.bk.isser .cv{box-shadow:5px -5px 0 -1px #151515,5px -5px 0 0 #2a2a2a,10px -10px 0 -1px #121212,10px -10px 0 0 #222;margin:10px 10px 0 0}
+.bk.isser .cv .sl2{font:10px var(--mono);color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
+.bk .cv .no~.t{padding-right:24px}
+.bk .cv .no{position:absolute;top:10px;right:10px;font:600 11px var(--mono);color:var(--tx3)}
+.bk .cv .bst{position:absolute;bottom:10px;right:10px;font:10px var(--mono);color:var(--tx4);text-transform:uppercase;letter-spacing:.06em}
+.bk .mv{display:flex;gap:2px}
+.bk .mv span{font:12px var(--mono);color:var(--tx4);padding:0 5px;cursor:pointer;border-radius:4px}
+.bk .mv span:hover{color:var(--tx);background:var(--s2)}
+.serhead{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.serhead h2{font:700 26px/1.15 'Chakra Petch',sans-serif;color:var(--tx)}
 .ser{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
 .sc{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--s1);cursor:pointer;display:flex;flex-direction:column;gap:12px}
 .sc:hover{border-color:var(--line2)}
@@ -1088,7 +1098,7 @@ function quoteModal(){modal(`<div class="eyebrow">Your quote</div><textarea id="
   <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
   d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=()=>{const v=$('#q-t',d).value.trim();close();store.settings({quote:v})};setTimeout(()=>$('#q-t',d).focus(),30)})}
 /* ---------- books ---------- */
-let bkTab='read',bkYear='all',bkGenre='';
+let bkTab='read',bkYear='all',bkGenre='',bkSer=null;
 const BK_ST=[['read','Read'],['reading','Reading'],['tbr','TBR'],['dnf','Did not finish']];
 const starsHtml=r=>{r=+r||0;return `<span class="stars">${[1,2,3,4,5].map(i=>`<span class="${i<=r?'':'off'}">★</span>`).join('')}</span>`};
 const bkGenres=()=>[...new Set(S.books.flatMap(b=>b.genres||[]))].sort((a,b)=>a.localeCompare(b));
@@ -1109,16 +1119,32 @@ function renderBooks(){
     <div class="stat"><div class="eyebrow">Avg rating</div><div class="n">${avg?avg.toFixed(1):'—'}<small>${avg?'/ 5':''}</small></div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${rated.length} rated</div></div>
     <div class="stat"><div class="eyebrow">Pages in ${cy}</div><div class="n">${pages?pages.toLocaleString():'—'}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${read.length} read all time</div></div>
     <div class="stat"><div class="eyebrow">Top genre</div><div class="n" style="font-size:22px">${top?esc(top[0]):'—'}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${top?top[1]+' book'+(top[1]===1?'':'s'):''}</div></div></div>`;
-  const tabs=`<div class="ftabs">${[['read','Read',read.length],['reading','Reading',reading.length],['tbr','TBR',tbr.length],['series','Series',Object.keys(bkSeries()).length],...(dnf.length?[['dnf','DNF',dnf.length]]:[])].map(([k,l,n])=>`<span class="${bkTab===k?'on':''}" data-act="bk-tab" data-t="${k}">${l} <span style="color:var(--tx4)">${n}</span></span>`).join('')}</div>`;
+  const tabs=`<div class="ftabs">${[['read','Read',read.length],['reading','Reading',reading.length],['tbr','TBR',tbr.length],...(dnf.length?[['dnf','DNF',dnf.length]]:[])].map(([k,l,n])=>`<span class="${bkTab===k?'on':''}" data-act="bk-tab" data-t="${k}">${l} <span style="color:var(--tx4)">${n}</span></span>`).join('')}</div>`;
   let body='';
-  if(bkTab==='read'||bkTab==='dnf'){
+  if(bkTab==='read'&&bkSer!=null){
+    const M=bkSeries(),L=M[bkSer]||[],meta=bkSerMeta()[bkSer]||{},rd=L.filter(b=>b.status==='read'),rt=L.filter(b=>b.rating),av=rt.length?rt.reduce((s,b)=>s+b.rating,0)/rt.length:0;
+    const tot=Math.max(+meta.total||0,L.length),au=meta.author||[...new Set(L.map(b=>b.author).filter(Boolean))].join(', ');const ST={reading:'Reading',tbr:'TBR',dnf:'DNF'};
+    body=`<div class="serhead"><button class="icon-btn" data-act="ser-back" title="Back">‹</button><div style="flex:1;min-width:0"><div class="eyebrow">Series${au?' · '+esc(au):''}</div><h2>${esc(bkSer)}</h2><div class="muted mono" style="font-size:11.5px;margin-top:4px">${rd.length} of ${tot||'?'} read${av?' · avg '+av.toFixed(1)+' ★':''}</div></div>
+      <button class="ghost" data-act="ser-open" data-n="${esc(bkSer)}">Edit series</button><button class="btn pri sm" data-act="ser-add" data-n="${esc(bkSer)}">+ Add book</button></div>
+      ${L.length?`<div class="bkgrid">${L.map((b,i)=>`<div class="bk" data-act="bk-open" data-id="${b.id}"><div class="cv">${b.seriesNo?`<span class="no">#${b.seriesNo}</span>`:''}<div class="t">${esc(b.title)}</div><div><div class="a">${esc(b.author||'')}</div></div>${ST[b.status]?`<span class="bst">${ST[b.status]}</span>`:''}</div>
+        <div class="mt">${b.rating?starsHtml(b.rating):'<span>not rated</span>'}<span class="mv">${i>0?`<span data-act="ser-mv" data-id="${b.id}" data-d="-1" title="Move earlier">‹</span>`:''}${i<L.length-1?`<span data-act="ser-mv" data-id="${b.id}" data-d="1" title="Move later">›</span>`:''}</span></div></div>`).join('')}</div>`:`<div class="empty">No books in this series yet. Tap + Add book.</div>`}
+      ${meta.notes&&meta.notes.trim()?`<div class="card" style="margin-top:20px"><h2>Thoughts on the series</h2><div style="white-space:pre-wrap;font-size:14px;line-height:1.6;color:var(--tx2)">${esc(meta.notes)}</div></div>`:''}`;
+  }else if(bkTab==='read'||bkTab==='dnf'){
     const base=bkTab==='read'?read:dnf;
     const years=[...new Set(base.map(b=>bkFin(b).slice(0,4)).filter(Boolean))].sort().reverse();
     if(bkYear!=='all'&&!years.includes(bkYear))bkYear='all';
     const gs=[...new Set(base.flatMap(b=>b.genres||[]))].sort();if(bkGenre&&!gs.includes(bkGenre))bkGenre='';
-    const L=base.filter(b=>(bkYear==='all'||bkFin(b).startsWith(bkYear))&&(!bkGenre||(b.genres||[]).includes(bkGenre))).sort((a,b)=>bkFin(b).localeCompare(bkFin(a))||(b.createdAt-a.createdAt));
+    const L0=base.filter(b=>(bkYear==='all'||bkFin(b).startsWith(bkYear))&&(!bkGenre||(b.genres||[]).includes(bkGenre)));
+    // books in a series collapse into one stacked "series" cover on the Read shelf
+    const groups={};const L=[];L0.forEach(b=>{if(bkTab==='read'&&b.series){(groups[b.series]=groups[b.series]||[]).push(b)}else L.push(b)});
+    if(bkTab==='read'&&bkYear==='all'&&!bkGenre)Object.keys(bkSeries()).forEach(n=>{if(!groups[n])groups[n]=[]});
+    Object.entries(groups).forEach(([n,g])=>L.push({_ser:n,_books:g,finished:g.map(bkFin).sort().pop()||'9999',createdAt:0}));
+    L.sort((a,b)=>bkFin(b).localeCompare(bkFin(a))||(b.createdAt-a.createdAt));
     body=`${years.length>1||gs.length?`<div class="bkbar"><div class="wtypes"><span class="${bkYear==='all'?'on':''}" data-act="bk-year" data-y="all">All years</span>${years.map(y=>`<span class="${bkYear===y?'on':''}" data-act="bk-year" data-y="${y}">${y}</span>`).join('')}</div>${gs.length?`<div class="wtypes" style="margin-left:auto"><span class="${!bkGenre?'on':''}" data-act="bk-genre" data-g="">All genres</span>${gs.map(g=>`<span class="${bkGenre===g?'on':''}" data-act="bk-genre" data-g="${esc(g)}">${esc(g)}</span>`).join('')}</div>`:''}</div>`:''}
-      ${L.length?`<div class="bkgrid">${L.map(b=>`<div class="bk" data-act="bk-open" data-id="${b.id}"><div class="cv"><span class="sh">${b.review&&b.review.trim()?'✎':''}</span><div class="t">${esc(b.title)}</div><div><div class="a">${esc(b.author||'')}</div>${b.series?`<div class="sr">${serLbl(b)}</div>`:''}</div></div>
+      ${bkTab==='read'?`<div class="row" style="justify-content:flex-end;margin:-6px 0 14px"><button class="ghost" data-act="ser-new">+ New series</button></div>`:''}
+      ${L.length?`<div class="bkgrid">${L.map(b=>b._ser!=null?(()=>{const all=bkSeries()[b._ser]||[],rt=all.filter(x=>x.rating),av=rt.length?rt.reduce((s,x)=>s+x.rating,0)/rt.length:0,au=(bkSerMeta()[b._ser]||{}).author||all.map(x=>x.author).find(Boolean)||'';
+        return `<div class="bk isser" data-act="ser-enter" data-n="${esc(b._ser)}"><div class="cv"><div><div class="sl2">Series · ${all.length} book${all.length===1?'':'s'}</div><div class="t" style="margin-top:6px">${esc(b._ser)}</div></div><div class="a">${esc(au)}</div></div>
+          <div class="mt">${av?starsHtml(Math.round(av)):'<span>not rated</span>'}<span>${all.filter(x=>x.status==='read').length} read</span></div></div>`})():`<div class="bk" data-act="bk-open" data-id="${b.id}"><div class="cv"><span class="sh">${b.review&&b.review.trim()?'✎':''}</span><div class="t">${esc(b.title)}</div><div><div class="a">${esc(b.author||'')}</div>${b.series?`<div class="sr">${serLbl(b)}</div>`:''}</div></div>
         <div class="mt">${b.rating?starsHtml(b.rating):'<span>not rated</span>'}<span>${b.finished?fmtShort(b.finished):''}</span></div>${(b.genres||[]).length?`<div>${b.genres.map(g=>`<span class="gtag">${esc(g)}</span>`).join('')}</div>`:''}</div>`).join('')}</div>`:`<div class="empty">${bkTab==='read'?'No finished books yet. Add one you’ve read, or finish one from Reading.':'Nothing here.'}</div>`}`;
   }else if(bkTab==='series'){
     const M=bkSeries(),meta=bkSerMeta(),names=Object.keys(M).sort((a,b)=>{const la=M[a],lb=M[b];const ra=la.some(x=>x.status==='reading'),rb=lb.some(x=>x.status==='reading');return (rb-ra)||a.localeCompare(b)});
@@ -1166,7 +1192,7 @@ function bkModal(b,preset,pre){
     d.querySelector('[data-a=s]').onclick=()=>{const title=$('#bk-t',d).value.trim();if(!title){$('#bk-t',d).focus();return}if($('#bk-gi',d).value.trim())addG();
       const rec={title,author:$('#bk-a',d).value.trim(),series:$('#bk-sr',d).value.trim(),seriesNo:parseFloat($('#bk-sn',d).value)||0,status,rating,genres,started:$('#bk-sd',d).value||'',finished:(status==='read'||status==='dnf')?($('#bk-fd',d).value||todayKey()):'',pages:parseInt($('#bk-p',d).value)||0,format:fmt,review:$('#bk-rv',d).value,quotes:$('#bk-q',d).value};
       close();if(isNew){store.put('books',uid(),{...rec,order:Date.now(),createdAt:Date.now()})}else store.patch('books',b.id,rec);
-      if(status!=='tbr'&&bkTab!==status&&bkTab!=='series'&&!(status==='dnf')){bkTab=status;render()}};
+      if(status!=='tbr'&&bkTab!==status&&bkSer==null&&!(status==='dnf')){bkTab=status;render()}};
     const del=d.querySelector('[data-a=del]');if(del)del.onclick=async()=>{close();if(await confirmBox(`Delete “${b.title}”${b.review?' and your review':''}?`,'Delete'))store.del('books',b.id)};
     if(isNew)setTimeout(()=>$('#bk-t',d).focus(),30);
   });
@@ -1182,19 +1208,24 @@ function serModal(name){const isNew=name==null;const M=bkSeries(),L=isNew?[]:(M[
     <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">${isNew?'Create':'Save'}</button></div></div>`,(d,close)=>{
     const save=(after)=>{const n=$('#sr-n',d).value.trim();if(!n){$('#sr-n',d).focus();return false}const m={...bkSerMeta()};
       if(!isNew&&n!==name){delete m[name];L.forEach(b=>store.patch('books',b.id,{series:n}))}
-      m[n]={total:parseInt($('#sr-t',d).value)||0,author:$('#sr-a',d).value.trim(),notes:$('#sr-x',d).value};store.settings({bookSeries:m});close();return n};
+      m[n]={total:parseInt($('#sr-t',d).value)||0,author:$('#sr-a',d).value.trim(),notes:$('#sr-x',d).value};if(isNew||bkSer===name){bkSer=n;bkTab='read'}store.settings({bookSeries:m});close();return n};
     d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=()=>save();
     d.querySelectorAll('[data-sb]').forEach(r=>r.onclick=()=>{const n=save();if(n){const b=S.books.find(x=>x.id===r.dataset.sb);if(b)bkModal(b)}});
     const nx=d.querySelector('[data-a=next]');if(nx)nx.onclick=()=>{const n=save();if(!n)return;const no=(L.reduce((m,b)=>Math.max(m,+b.seriesNo||0),0)||L.length)+1;const au=$('#sr-a',d)?.value||'';
       bkModal(null,'tbr',{series:n,seriesNo:no,author:(bkSerMeta()[n]||{}).author||L.map(b=>b.author).find(Boolean)||''})};
-    const del=d.querySelector('[data-a=del]');if(del)del.onclick=async()=>{close();if(await confirmBox(`Delete the series “${name}”? The books stay on your shelves, just without the series.`,'Delete series')){L.forEach(b=>store.patch('books',b.id,{series:'',seriesNo:0}));const m={...bkSerMeta()};delete m[name];store.settings({bookSeries:m})}};
+    const del=d.querySelector('[data-a=del]');if(del)del.onclick=async()=>{close();if(await confirmBox(`Delete the series “${name}”? The books stay on your shelves, just without the series.`,'Delete series')){bkSer=null;L.forEach(b=>store.patch('books',b.id,{series:'',seriesNo:0}));const m={...bkSerMeta()};delete m[name];store.settings({bookSeries:m})}};
     if(isNew)setTimeout(()=>$('#sr-n',d).focus(),30);
   });
 }
 function bookAct(a,el){const id=el.dataset.id,b=id&&S.books.find(x=>x.id===id);
   if(a==='ser-new'){serModal(null);return}
+  if(a==='ser-enter'){bkSer=el.dataset.n;render();window.scrollTo&&window.scrollTo(0,0);return}
+  if(a==='ser-back'){bkSer=null;render();return}
+  if(a==='ser-add'){const n=el.dataset.n,L=bkSeries()[n]||[];bkModal(null,'read',{series:n,seriesNo:(L.reduce((m,b)=>Math.max(m,+b.seriesNo||0),0)||L.length)+1,author:(bkSerMeta()[n]||{}).author||L.map(b=>b.author).find(Boolean)||''});return}
+  if(a==='ser-mv'&&b){const L=bkSeries()[b.series]||[],i=L.findIndex(x=>x.id===b.id),j=i+(+el.dataset.d);if(j<0||j>=L.length)return;
+    L.forEach((x,k)=>{const want=k===i?j+1:k===j?i+1:k+1;if(+x.seriesNo!==want)store.patch('books',x.id,{seriesNo:want})});return}
   if(a==='ser-open'){serModal(el.dataset.n);return}
-  if(a==='bk-tab'){bkTab=el.dataset.t;render();return}
+  if(a==='bk-tab'){bkTab=el.dataset.t;bkSer=null;render();return}
   if(a==='bk-year'){bkYear=el.dataset.y;render();return}
   if(a==='bk-genre'){bkGenre=el.dataset.g;render();return}
   if(a==='bk-new'){bkModal(null,bkTab==='dnf'||bkTab==='series'?'read':bkTab);return}
@@ -1208,7 +1239,7 @@ function bookAct(a,el){const id=el.dataset.id,b=id&&S.books.find(x=>x.id===id);
   if(a==='bk-goal'){const g=+((S.settings||{}).bookGoal)||0;modal(`<div class="eyebrow">Reading goal for ${new Date().getFullYear()}</div><label>Books this year<input class="big" id="bg" inputmode="numeric" value="${g||''}" placeholder="e.g. 12"></label><div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
     const s=()=>{close();store.settings({bookGoal:parseInt($('#bg',d).value)||0})};d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=s;$('#bg',d).addEventListener('keydown',e=>{if(e.key==='Enter')s()});setTimeout(()=>$('#bg',d).select(),30)});return}
 }
-const BOOK_ACTS=['ser-new','ser-open','bk-tab','bk-year','bk-genre','bk-new','bk-open','bk-start','bk-finish','bk-page','tbr-add','tbr-up','bk-goal'];
+const BOOK_ACTS=['ser-enter','ser-back','ser-add','ser-mv','ser-new','ser-open','bk-tab','bk-year','bk-genre','bk-new','bk-open','bk-start','bk-finish','bk-page','tbr-add','tbr-up','bk-goal'];
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t&&t.dataset&&t.dataset.enter5){e.preventDefault();bookAct(t.dataset.enter5,t)}});
 /* ---------- cube times ---------- */
 let cubeOpen=new Set(),cubeFlash=null;
