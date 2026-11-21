@@ -1416,7 +1416,7 @@ const QUOTE_ACTS=['q-year','q-add','q-mode','q-open','q-addyear'];
 function renderSide(){
   const t=T(),ms=elapsed();
   const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['body','Fitness','Fitness'],['books','Books','Books'],['cubes','Cube times','Cubes'],['money','Money','Money'],['quotes','Quote board','Quotes']];
-  const NAVSEC={focus:'School',body:'Hobbies',money:'Life'};
+  const NAVSEC={focus:'Grind',body:'Play',money:'Life'};
   const goal=S.settings.gpaGoal||'';
   const sync=mode==='file'?`<div class="filebox" data-act="switch-file" title="${ghMode?'Sync status':'Click to switch or reconnect your data file'}"><span class="fn">${esc(ghMode?'GitHub sync':FILES.study.handle.name)}</span><div class="sync live"><i></i><span data-save="study">${FILES.study.state||'Saved'}</span></div></div>`:mode==='local'?'<div class="sync"><i></i>Saved in this browser only</div>':'';
   return `<div class="brand"><i></i>Lock in</div>
