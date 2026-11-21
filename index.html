@@ -416,6 +416,38 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .mamt{font:13px var(--mono);white-space:nowrap}
 @media (max-width:980px){#app{grid-template-columns:168px 1fr}main{padding:30px 24px 80px}.mstats,.stats{grid-template-columns:1fr 1fr}.fgrid,.bgrid,.mgrid,.pgrid,.plan,.tgrid{grid-template-columns:1fr}.lists{grid-template-columns:180px 1fr}.week{overflow-x:auto}.hab{grid-template-columns:18px 1fr}.hab .hcells,.hab .hhist{grid-column:2}}
 /* fitness tabs */
+/* cube times */
+.recs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.rec{flex:1 1 150px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--s1);cursor:pointer}
+.rec:hover{border-color:var(--line2)}
+.rec .rn{font:11px var(--mono);color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
+.rec .rt{font:700 26px/1.1 'Chakra Petch',sans-serif;font-feature-settings:'tnum';margin-top:4px}
+.rec .rd{font:11px var(--mono);color:var(--tx4);margin-top:3px}
+.cubes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.cube .ch{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.cube .ch h2{font:700 18px 'Chakra Petch',sans-serif;color:var(--tx);flex:1}
+.cube .pb{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.cube .pb b{font:700 44px/1 'Chakra Petch',sans-serif;font-feature-settings:'tnum';letter-spacing:-.02em}
+.cube .pb span{font:11.5px var(--mono);color:var(--tx3)}
+.cstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.cstats div{border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.cstats i{display:block;font:normal 10px var(--mono);color:var(--tx4);text-transform:uppercase;letter-spacing:.08em}
+.cstats b{font:600 16px 'Chakra Petch',sans-serif;font-feature-settings:'tnum'}
+.cin{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px}
+.cin input{font:600 18px var(--mono);letter-spacing:.02em}
+.spark2{width:100%;height:44px;display:block;margin:2px 0 10px}
+.sv{display:grid;grid-template-columns:28px 1fr auto auto;gap:10px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+.sv:last-child{border-bottom:none}
+.sv:hover{background:var(--s2)}
+.sv .sn{font:11px var(--mono);color:var(--tx4);text-align:right}
+.sv .st{font:600 15px 'Chakra Petch',sans-serif;font-feature-settings:'tnum'}
+.sv .st.pbm::after{content:' PB';font:600 10px var(--mono);color:var(--tx3);vertical-align:2px}
+.sv .sd{font:11px var(--mono);color:var(--tx4);text-align:right}
+.sv .sp2{font:11px var(--mono);color:var(--tx3)}
+.cube.flash .pb b{animation:pbf 1.4s ease}
+@keyframes pbf{0%{color:#fff;text-shadow:0 0 18px rgba(255,255,255,.55)}100%{text-shadow:none}}
+@media (max-width:900px){.cubes{grid-template-columns:1fr}}
+@media (max-width:700px){.cstats{grid-template-columns:repeat(2,1fr)}.cube .pb b{font-size:38px}}
 /* quote board */
 .qbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .qwrap{position:relative;width:100%;border:1px solid var(--line);border-radius:14px;overflow:hidden;background-color:#0c0c0c;background-image:radial-gradient(#1d1d1d 1px,transparent 1px);background-size:22px 22px}
@@ -565,7 +597,7 @@ button.eat{font:inherit;font-size:12.5px;padding:5px 14px}
   #side{position:fixed;left:0;right:0;bottom:0;z-index:40;flex-direction:row;padding:6px 4px calc(6px + env(safe-area-inset-bottom));gap:0;border-right:0;border-top:1px solid var(--line);background:rgba(10,10,10,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   #side .brand,#side .side-foot,#side .navsep,#side .mini{display:none}
   nav{flex-direction:row;flex:1;gap:0}
-  nav a{flex:1;flex-direction:column;justify-content:center;padding:9px 1px;border-radius:10px;font-size:10.5px;text-align:center;min-width:0}
+  nav a{flex:1;flex-direction:column;justify-content:center;padding:9px 0;border-radius:10px;font-size:10px;letter-spacing:-.01em;text-align:center;min-width:0;overflow:hidden;white-space:nowrap}
   nav a.on{background:var(--s3)}
   .nl{display:none}.ns{display:inline}
   .mhead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 2px 14px}
@@ -672,7 +704,7 @@ const todayKey=()=>dayKey(new Date());
 const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
 /* ---------- state ---------- */
-const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],quotes:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],groceries:[],settings:{},bodySettings:{},moneySettings:{}};
+const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],quotes:[],solves:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],groceries:[],settings:{},bodySettings:{},moneySettings:{}};
 const COLS=['sessions','folders','tasks','events'];
 let mode='starting';
 const hasFS=typeof window.showSaveFilePicker==='function'&&typeof window.showOpenFilePicker==='function';
@@ -689,7 +721,7 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 async function safe(p){try{return await p}catch(e){console.error(e);toast(e&&e.code==='quota_exceeded'?'Storage is full':'Couldn’t save, try again');}}
 
 /* ---------- storage: two files (study + body) ---------- */
-const STUDY_COLS=['sessions','folders','tasks','events','plans','habits','quotes'];
+const STUDY_COLS=['sessions','folders','tasks','events','plans','habits','quotes','solves'];
 const BODY_COLS=['food','meals','workouts','weights','ingredients','recipes','weekplans','shops'];
 const mkFile=(name,idbKey,cols,sk,suggested)=>({name,idbKey,cols,sk,suggested,handle:null,pending:null,lastWrite:0,saving:false,dirty:false,ops:[],timer:null,state:''});
 const FILES={study:mkFile('study','file',STUDY_COLS,'settings','lockin-work.json'),body:mkFile('body','bodyfile',BODY_COLS,'bodySettings','lockin-fitness.json'),money:mkFile('money','moneyfile',['expenses','groceries'],'moneySettings','lockin-money.json')};
@@ -1004,6 +1036,81 @@ function quoteModal(){modal(`<div class="eyebrow">Your quote</div><textarea id="
   <div class="muted" style="font-size:12px">The part after “, but” shows brighter.</div>
   <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
   d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=()=>{const v=$('#q-t',d).value.trim();close();store.settings({quote:v})};setTimeout(()=>$('#q-t',d).focus(),30)})}
+/* ---------- cube times ---------- */
+let cubeOpen=new Set(),cubeFlash=null;
+const CUBE_DEFAULT=[{id:'c333',name:'3x3'}];
+const cubeList=()=>{const l=(S.settings||{}).cubes;return Array.isArray(l)&&l.length?l:CUBE_DEFAULT};
+function parseSolve(v){let s=String(v||'').trim().toLowerCase();if(!s)return null;if(s==='dnf')return {dnf:true,ms:0};
+  s=s.replace(/s$/,'').replace(/,/g,'.');let ms=NaN;
+  const m=/^(\d+):(\d{1,2}(?:\.\d+)?)$/.exec(s);if(m)ms=(+m[1]*60+parseFloat(m[2]))*1000;
+  else if(/^\d+(\.\d+)?$/.test(s))ms=parseFloat(s)*1000;
+  return isFinite(ms)&&ms>0?{ms:Math.round(ms)}:null}
+const solveVal=x=>x.dnf?Infinity:(x.ms+(x.plus2?2000:0));
+function fmtSolve(ms){if(!isFinite(ms))return 'DNF';const t=Math.round(ms/10)/100,m=Math.floor(t/60),s=(t-m*60).toFixed(2);return m?`${m}:${s.padStart(5,'0')}`:s}
+function solvesOf(cid){return S.solves.filter(x=>x.cube===cid).sort((a,b)=>a.at-b.at)}
+function aoN(list,n){if(list.length<n)return null;const v=list.slice(-n).map(solveVal).sort((a,b)=>a-b);const cut=Math.ceil(n*.05)||1;const mid=v.slice(cut,n-cut);if(mid.some(x=>!isFinite(x)))return Infinity;return mid.reduce((a,b)=>a+b,0)/mid.length}
+function bestAo(list,n){let b=null;for(let i=n;i<=list.length;i++){const a=aoN(list.slice(0,i),n);if(a!=null&&(b==null||a<b))b=a}return b}
+function cubePB(list){let b=null;list.forEach(x=>{const v=solveVal(x);if(isFinite(v)&&(!b||v<solveVal(b)))b=x});return b}
+const fmtAt=t=>{const d=new Date(t);return `${d.getDate()} ${MON[d.getMonth()]} · ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+function cubeSpark(list){const v=list.slice(-30).map(solveVal).filter(isFinite);if(v.length<2)return '';const mn=Math.min(...v),mx=Math.max(...v),W=300,H=44,r=mx-mn||1;
+  const pts=v.map((y,i)=>`${(i/(v.length-1)*W).toFixed(1)},${(4+(y-mn)/r*(H-8)).toFixed(1)}`).join(' ');
+  return `<svg class="spark2" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--tx3)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`}
+function renderCubes(){
+  const C=cubeList();
+  const recs=C.map(c=>{const pb=cubePB(solvesOf(c.id));return `<div class="rec" data-act="cube-jump" data-id="${c.id}"><div class="rn">${esc(c.name)}</div><div class="rt">${pb?fmtSolve(solveVal(pb)):'—'}</div><div class="rd">${pb?fmtAt(pb.at):'no solves yet'}</div></div>`}).join('');
+  const cards=C.map(c=>{const L=solvesOf(c.id),pb=cubePB(L),pbv=pb?solveVal(pb):null;
+    const a5=aoN(L,5),a12=aoN(L,12),b5=bestAo(L,5);const open=cubeOpen.has(c.id);const show=open?L.slice().reverse():L.slice(-5).reverse();
+    const f=v=>v==null?'—':fmtSolve(v);
+    return `<div class="card cube ${cubeFlash===c.id?'flash':''}" id="cube-${c.id}">
+      <div class="ch"><h2>${esc(c.name)}</h2><span class="muted mono" style="font-size:12px">${L.length} ${L.length===1?'solve':'solves'}</span><button class="ghost" data-act="cube-edit" data-id="${c.id}">Edit</button></div>
+      <div class="pb"><span>RECORD</span><b>${pb?fmtSolve(pbv):'—'}</b>${pb?`<span>${fmtAt(pb.at)}</span>`:''}</div>
+      <div class="cstats"><div><i>Ao5</i><b>${f(a5)}</b></div><div><i>Ao12</i><b>${f(a12)}</b></div><div><i>Best ao5</i><b>${f(b5)}</b></div><div><i>Last</i><b>${L.length?fmtSolve(solveVal(L[L.length-1])):'—'}</b></div></div>
+      <div class="cin"><input data-k="cube-t-${c.id}" data-hold data-cube="${c.id}" inputmode="decimal" placeholder="Time, e.g. 42.18" autocomplete="off"><button class="btn pri sm" data-act="cube-add" data-id="${c.id}">Add</button></div>
+      ${cubeSpark(L)}
+      ${show.map(x=>{const v=solveVal(x),n=L.indexOf(x)+1;return `<div class="sv" data-act="cube-solve" data-id="${x.id}"><span class="sn">${n}</span><span class="st ${pb&&x.id===pb.id?'pbm':''}">${fmtSolve(v)}${x.plus2?'<span class="sp2"> +2</span>':''}</span><span class="sp2">${x.note?esc(x.note).slice(0,24):''}</span><span class="sd">${fmtAt(x.at)}</span></div>`}).join('')||'<div class="empty" style="padding:6px 2px">Type a time and press Enter. The date and time are saved for you.</div>'}
+      ${L.length>5?`<div style="margin-top:8px"><span class="lnk muted" style="font-size:12.5px;cursor:pointer;text-decoration:underline" data-act="cube-more" data-id="${c.id}">${open?'Show less':`Show all ${L.length}`}</span></div>`:''}
+    </div>`}).join('');
+  return `<div class="head"><div class="l"><span class="eyebrow">Cube times · ${S.solves.length} ${S.solves.length===1?'solve':'solves'}</span><h1>Records</h1></div><button class="btn sm" data-act="cube-new">+ Add cube</button></div>
+    <div class="recs">${recs}</div>
+    <div class="cubes">${cards}</div>`;
+}
+function cubeEnsure(){if(!Array.isArray((S.settings||{}).cubes)||!(S.settings.cubes||[]).length)store.settings({cubes:CUBE_DEFAULT.map(x=>({...x}))})}
+function cubeAdd(cid){const inp=$(`[data-cube="${cid}"]`);if(!inp)return;const r=parseSolve(inp.value);if(!r){toast('Type a time like 42.18 or 1:05.30');inp.focus();return}
+  cubeEnsure();const L=solvesOf(cid),old=cubePB(L),oldv=old?solveVal(old):Infinity;inp.value='';
+  store.put('solves',uid(),{cube:cid,ms:r.ms,...(r.dnf?{dnf:true}:{}),at:Date.now()});
+  if(!r.dnf&&r.ms<oldv&&L.length){cubeFlash=cid;toast('New record! '+fmtSolve(r.ms));render();setTimeout(()=>{cubeFlash=null},1500)}
+  const n=$(`[data-cube="${cid}"]`);n&&n.focus()}
+function cubeAct(a,el){const id=el.dataset.id;
+  if(a==='cube-add'){cubeAdd(id);return}
+  if(a==='cube-more'){cubeOpen.has(id)?cubeOpen.delete(id):cubeOpen.add(id);render();return}
+  if(a==='cube-jump'){const c=$('#cube-'+id);c&&c.scrollIntoView({behavior:'smooth',block:'start'});const i=$(`[data-cube="${id}"]`);if(i&&!window.matchMedia('(hover:none)').matches)setTimeout(()=>i.focus({preventScroll:true}),300);return}
+  if(a==='cube-new'||a==='cube-edit'){const c=a==='cube-edit'?cubeList().find(x=>x.id===id):null;const L=c?solvesOf(c.id):[];
+    modal(`<div class="eyebrow">${c?'Edit cube':'Add a cube'}</div><input class="big" id="cb-n" value="${esc(c?c.name:'')}" placeholder="e.g. 2x2, 4x4, Pyraminx, OH 3x3">
+      ${c?'':`<div class="chips2">${['2x2','3x3','4x4','5x5','Pyraminx','Skewb','Megaminx','3x3 OH'].filter(n=>!cubeList().some(x=>x.name.toLowerCase()===n.toLowerCase())).map(n=>`<span class="cbtn" data-n="${n}">${n}</span>`).join('')}</div>`}
+      ${c&&cubeList().length>1?`<div class="row" style="gap:6px"><button class="btn sm" data-a="up">Move up</button><button class="btn sm" data-a="dn">Move down</button></div>`:''}
+      <div class="row-end">${c?`<button class="ghost danger-t" data-a="del">Delete</button>`:''}<span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">${c?'Save':'Add'}</button></div>`,(d,close)=>{
+      d.querySelectorAll('.cbtn[data-n]').forEach(b=>b.onclick=()=>{$('#cb-n',d).value=b.dataset.n});
+      const save=()=>{const name=$('#cb-n',d).value.trim();if(!name){$('#cb-n',d).focus();return}close();const l=cubeList().map(x=>({...x}));
+        if(c){l.find(x=>x.id===c.id).name=name}else l.push({id:'c'+uid(),name});store.settings({cubes:l})};
+      d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;$('#cb-n',d).addEventListener('keydown',e=>{if(e.key==='Enter')save()});
+      const mv=k=>{const l=cubeList().map(x=>({...x})),i=l.findIndex(x=>x.id===c.id),j=i+k;if(j<0||j>=l.length)return;[l[i],l[j]]=[l[j],l[i]];close();store.settings({cubes:l})};
+      const u=d.querySelector('[data-a=up]');if(u){u.onclick=()=>mv(-1);d.querySelector('[data-a=dn]').onclick=()=>mv(1)}
+      const del=d.querySelector('[data-a=del]');if(del)del.onclick=async()=>{close();if(await confirmBox(`Delete “${c.name}”${L.length?` and its ${L.length} solve${L.length===1?'':'s'}`:''}? This can’t be undone.`,'Delete')){L.forEach(x=>store.del('solves',x.id));const l=cubeList().filter(x=>x.id!==c.id);store.settings({cubes:l.length?l:[]})}};
+      setTimeout(()=>$('#cb-n',d).focus(),30)});return}
+  if(a==='cube-solve'){const x=S.solves.find(s=>s.id===id);if(!x)return;const dt=new Date(x.at),loc=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    modal(`<div class="eyebrow">Edit solve</div>
+      <div class="row"><label>Time<input id="sv-t" inputmode="decimal" value="${x.dnf?'DNF':fmtSolve(x.ms)}"></label><label>When<input type="datetime-local" id="sv-a" value="${loc}"></label></div>
+      <div class="feel" id="sv-pen"><span data-p="ok" class="${!x.plus2&&!x.dnf?'on':''}">OK</span><span data-p="p2" class="${x.plus2?'on':''}">+2</span><span data-p="dnf" class="${x.dnf?'on':''}">DNF</span></div>
+      <label>Note<input id="sv-n" value="${esc(x.note||'')}" placeholder="optional, e.g. lucky PLL skip"></label>
+      <div class="row-end"><button class="ghost danger-t" data-a="del">Delete</button><span class="sp"></span><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
+      let pen=x.dnf?'dnf':x.plus2?'p2':'ok';d.querySelectorAll('#sv-pen span').forEach(s=>s.onclick=()=>{pen=s.dataset.p;d.querySelectorAll('#sv-pen span').forEach(y=>y.classList.toggle('on',y===s))});
+      const save=()=>{const r=parseSolve($('#sv-t',d).value);const at=new Date($('#sv-a',d).value).getTime()||x.at;
+        const p={at,note:$('#sv-n',d).value.trim(),plus2:pen==='p2',dnf:pen==='dnf'||!!(r&&r.dnf)};if(r&&!r.dnf)p.ms=r.ms;else if(!r&&pen!=='dnf'){toast('Type a time like 42.18');return}close();store.patch('solves',x.id,p)};
+      d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=del]').onclick=()=>{close();store.del('solves',x.id)};
+      ['#sv-t','#sv-n'].forEach(s=>$(s,d).addEventListener('keydown',e=>{if(e.key==='Enter')save()}))});return}
+}
+const CUBE_ACTS=['cube-add','cube-more','cube-jump','cube-new','cube-edit','cube-solve'];
+document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t&&t.dataset&&t.dataset.cube){e.preventDefault();cubeAdd(t.dataset.cube)}});
 /* ---------- quote board ---------- */
 let qYear=null,qSel=null,qPhoneMode='list';
 const QW=1000;
@@ -1101,7 +1208,7 @@ const QUOTE_ACTS=['q-year','q-add','q-mode','q-open','q-addyear'];
 })();
 function renderSide(){
   const t=T(),ms=elapsed();
-  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['quotes','Quote board','Quotes'],['body','Fitness','Fitness'],['money','Money','Money']];
+  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['quotes','Quote board','Quotes'],['cubes','Cube times','Cubes'],['body','Fitness','Fitness'],['money','Money','Money']];
   const goal=S.settings.gpaGoal||'';
   const sync=mode==='file'?`<div class="filebox" data-act="switch-file" title="${ghMode?'Sync status':'Click to switch or reconnect your data file'}"><span class="fn">${esc(ghMode?'GitHub sync':FILES.study.handle.name)}</span><div class="sync live"><i></i><span data-save="study">${FILES.study.state||'Saved'}</span></div></div>`:mode==='local'?'<div class="sync"><i></i>Saved in this browser only</div>':'';
   return `<div class="brand"><i></i>Lock in</div>
@@ -2513,7 +2620,7 @@ function habitDetail(hb){
   },'x');
 }
 const HAB_ACTS=['hab-archtoggle','hab-add','hab-toggle','hab-edit','hab-detail'];
-const VIEWS={quotes:renderQuotes,habits:renderHabits,focus:renderFocus,lists:renderLists,week:renderWeek,log:renderLog,progress:()=>renderProgress()+`<div style="margin-top:48px"></div>`+renderLog(),body:renderBody,money:renderMoney};
+const VIEWS={cubes:renderCubes,quotes:renderQuotes,habits:renderHabits,focus:renderFocus,lists:renderLists,week:renderWeek,log:renderLog,progress:()=>renderProgress()+`<div style="margin-top:48px"></div>`+renderLog(),body:renderBody,money:renderMoney};
 
 /* ---------- actions ---------- */
 function commit(el){
@@ -2532,6 +2639,7 @@ document.addEventListener('click',async e=>{
   if(BODY_ACTS.includes(a)){e.stopPropagation();bodyAct(a,el);return}
   if(HAB_ACTS.includes(a)){habitAct(a,el);return}
   if(FIT_ACTS.includes(a)){fitAct(a,el);return}
+  if(CUBE_ACTS.includes(a)){cubeAct(a,el);return}
   if(QUOTE_ACTS.includes(a)){quoteAct(a,el);return}
   if(GRO_ACTS.includes(a)){e.stopPropagation();groAct(a,el);return}
   if(MONEY_ACTS.includes(a)){moneyAct(a,el);return}
