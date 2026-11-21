@@ -235,6 +235,8 @@ mark{background:#3a3a3a;color:var(--tx);border-radius:3px;padding:0 2px}
 .filebox:hover .fn{color:var(--tx)}
 .fn{font-size:12px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .navsep{height:1px;background:var(--line);margin:10px 12px}
+.navsec{font:10.5px var(--mono);color:var(--tx4);text-transform:uppercase;letter-spacing:.14em;padding:0 12px 6px;margin-top:14px}
+nav .navsec:first-child{margin-top:0}
 .tgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .tcard{border:1px solid var(--line);border-radius:14px;padding:20px;background:var(--s1)}
 .tn{display:flex;align-items:baseline;gap:8px;margin:10px 0 14px}
@@ -655,7 +657,7 @@ button.eat{font:inherit;font-size:12.5px;padding:5px 14px}
   #app{display:block;height:auto;min-height:100vh}
   main{padding:calc(10px + env(safe-area-inset-top)) 14px calc(84px + env(safe-area-inset-bottom));overflow:visible}
   #side{position:fixed;left:0;right:0;bottom:0;z-index:40;flex-direction:row;padding:6px 4px calc(6px + env(safe-area-inset-bottom));gap:0;border-right:0;border-top:1px solid var(--line);background:rgba(10,10,10,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-  #side .brand,#side .side-foot,#side .navsep,#side .mini{display:none}
+  #side .brand,#side .side-foot,#side .navsep,#side .navsec,#side .mini{display:none}
   nav{flex-direction:row;flex:1;gap:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   nav::-webkit-scrollbar{display:none}
   nav a{flex:1 0 auto;flex-direction:column;justify-content:center;padding:9px 8px;border-radius:10px;font-size:11px;text-align:center;min-width:52px;white-space:nowrap}
@@ -1413,11 +1415,12 @@ const QUOTE_ACTS=['q-year','q-add','q-mode','q-open','q-addyear'];
 })();
 function renderSide(){
   const t=T(),ms=elapsed();
-  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['quotes','Quote board','Quotes'],['cubes','Cube times','Cubes'],['books','Books','Books'],['body','Fitness','Fitness'],['money','Money','Money']];
+  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['body','Fitness','Fitness'],['books','Books','Books'],['cubes','Cube times','Cubes'],['money','Money','Money'],['quotes','Quote board','Quotes']];
+  const NAVSEC={focus:'School',body:'Hobbies',money:'Life'};
   const goal=S.settings.gpaGoal||'';
   const sync=mode==='file'?`<div class="filebox" data-act="switch-file" title="${ghMode?'Sync status':'Click to switch or reconnect your data file'}"><span class="fn">${esc(ghMode?'GitHub sync':FILES.study.handle.name)}</span><div class="sync live"><i></i><span data-save="study">${FILES.study.state||'Saved'}</span></div></div>`:mode==='local'?'<div class="sync"><i></i>Saved in this browser only</div>':'';
   return `<div class="brand"><i></i>Lock in</div>
-  <nav>${nav.map(([k,l,sl])=>`${k==='body'?'<div class="navsep"></div>':''}<a href="#${k}" class="${view===k?'on':''}"><span class="nl">${l}</span><span class="ns">${sl}</span>${k==='focus'&&ms>0?`<span class="mini ${t.running?'':'paused'}" data-clock-mini></span>`:''}</a>`).join('')}</nav>
+  <nav>${nav.map(([k,l,sl])=>`${NAVSEC[k]?`<div class="navsec">${NAVSEC[k]}</div>`:''}<a href="#${k}" class="${view===k?'on':''}"><span class="nl">${l}</span><span class="ns">${sl}</span>${k==='focus'&&ms>0?`<span class="mini ${t.running?'':'paused'}" data-clock-mini></span>`:''}</a>`).join('')}</nav>
   <div class="side-foot">
     <div class="goal" data-act="goal-edit" title="Click to edit">
       <span class="eyebrow">Goal</span>
