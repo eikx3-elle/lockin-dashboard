@@ -1127,7 +1127,8 @@ function bkSeries(){const m={};S.books.forEach(b=>{if(b.series){(m[b.series]=m[b
 const serLbl=b=>b.series?`${esc(b.series)}${b.seriesNo?' #'+b.seriesNo:''}`:'';
 function renderBooks(){
   const cy=String(new Date().getFullYear());
-  const read=S.books.filter(b=>b.status==='read'),reading=S.books.filter(b=>b.status==='reading'),tbr=S.books.filter(b=>b.status==='tbr').sort((a,b)=>(a.order??a.createdAt)-(b.order??b.createdAt)),dnf=S.books.filter(b=>b.status==='dnf');
+  const read=S.books.filter(b=>b.status==='read'||b.rereading),reading=S.books.filter(b=>b.status==='reading'),tbr=S.books.filter(b=>b.status==='tbr').sort((a,b)=>(a.order??a.createdAt)-(b.order??b.createdAt)),dnf=S.books.filter(b=>b.status==='dnf');
+  const rr=S.books.filter(b=>b.reread&&b.status!=='reading').sort((a,b)=>(a.rrOrder??a.createdAt)-(b.rrOrder??b.createdAt));
   const yr=read.filter(b=>bkFin(b).startsWith(cy)),goal=+((S.settings||{}).bookGoal)||0;
   const rated=read.filter(b=>b.rating),avg=rated.length?rated.reduce((s,b)=>s+b.rating,0)/rated.length:0;
   const pages=yr.reduce((s,b)=>s+(+b.pages||0),0);
@@ -1137,7 +1138,7 @@ function renderBooks(){
     <div class="stat"><div class="eyebrow">Avg rating</div><div class="n">${avg?avg.toFixed(1):'—'}<small>${avg?'/ 5':''}</small></div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${rated.length} rated</div></div>
     <div class="stat"><div class="eyebrow">Pages in ${cy}</div><div class="n">${pages?pages.toLocaleString():'—'}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${read.length} read all time</div></div>
     <div class="stat"><div class="eyebrow">Top genre</div><div class="n" style="font-size:22px">${top?esc(top[0]):'—'}</div><div class="muted mono" style="font-size:11.5px;margin-top:4px">${top?top[1]+' book'+(top[1]===1?'':'s'):''}</div></div></div>`;
-  const tabs=`<div class="ftabs">${[['read','Read',read.length],['reading','Reading',reading.length],['tbr','TBR',tbr.length],...(dnf.length?[['dnf','DNF',dnf.length]]:[])].map(([k,l,n])=>`<span class="${bkTab===k?'on':''}" data-act="bk-tab" data-t="${k}">${l} <span style="color:var(--tx4)">${n}</span></span>`).join('')}</div>`;
+  const tabs=`<div class="ftabs">${[['read','Read',read.length],['reading','Reading',reading.length],['tbr','TBR',tbr.length],['reread','Reread',rr.length],...(dnf.length?[['dnf','DNF',dnf.length]]:[])].map(([k,l,n])=>`<span class="${bkTab===k?'on':''}" data-act="bk-tab" data-t="${k}">${l} <span style="color:var(--tx4)">${n}</span></span>`).join('')}</div>`;
   let body='';
   if(bkTab==='read'&&bkSer!=null){
     const M=bkSeries(),L=M[bkSer]||[],meta=bkSerMeta()[bkSer]||{},rd=L.filter(b=>b.status==='read'),rt=L.filter(b=>b.rating),av=rt.length?rt.reduce((s,b)=>s+b.rating,0)/rt.length:0;
@@ -1163,7 +1164,7 @@ function renderBooks(){
       ${L.length?`<div class="bkgrid">${L.map(b=>b._ser!=null?(()=>{const all=bkSeries()[b._ser]||[],rt=all.filter(x=>x.rating),av=rt.length?rt.reduce((s,x)=>s+x.rating,0)/rt.length:0,au=(bkSerMeta()[b._ser]||{}).author||all.map(x=>x.author).find(Boolean)||'';
         return `<div class="bk isser" data-act="ser-enter" data-n="${esc(b._ser)}"><div class="cv"><div><div class="sl2">Series · ${all.length} book${all.length===1?'':'s'}</div><div class="t" style="margin-top:6px">${esc(b._ser)}</div></div><div class="a">${esc(au)}</div></div>
           <div class="mt">${av?starsHtml(Math.round(av)):'<span>not rated</span>'}<span>${all.filter(x=>x.status==='read').length} read</span></div></div>`})():`<div class="bk" data-act="bk-open" data-id="${b.id}"><div class="cv"><span class="sh">${b.review&&b.review.trim()?'✎':''}</span><div class="t">${esc(b.title)}</div><div><div class="a">${esc(b.author||'')}</div>${b.series?`<div class="sr">${serLbl(b)}</div>`:''}</div></div>
-        <div class="mt">${b.rating?starsHtml(b.rating):'<span>not rated</span>'}<span>${b.finished?fmtShort(b.finished):''}</span></div>${(b.genres||[]).length?`<div>${b.genres.map(g=>`<span class="gtag">${esc(g)}</span>`).join('')}</div>`:''}</div>`).join('')}</div>`:`<div class="empty">${bkTab==='read'?'No finished books yet. Add one you’ve read, or finish one from Reading.':'Nothing here.'}</div>`}`;
+        <div class="mt">${b.rating?starsHtml(b.rating):'<span>not rated</span>'}<span>${(b.reads||[]).length?((b.reads||[]).length+1)+'× · ':''}${b.finished?fmtShort(b.finished):''}</span></div>${(b.genres||[]).length?`<div>${b.genres.map(g=>`<span class="gtag">${esc(g)}</span>`).join('')}</div>`:''}</div>`).join('')}</div>`:`<div class="empty">${bkTab==='read'?'No finished books yet. Add one you’ve read, or finish one from Reading.':'Nothing here.'}</div>`}`;
   }else if(bkTab==='series'){
     const M=bkSeries(),meta=bkSerMeta(),names=Object.keys(M).sort((a,b)=>{const la=M[a],lb=M[b];const ra=la.some(x=>x.status==='reading'),rb=lb.some(x=>x.status==='reading');return (rb-ra)||a.localeCompare(b)});
     body=`<div class="row" style="justify-content:flex-end;margin-bottom:14px"><button class="btn sm" data-act="ser-new">+ New series</button></div>${names.length?`<div class="ser">${names.map(n=>{const L=M[n],tot=Math.max(+(meta[n]||{}).total||0,L.length,...L.map(b=>+b.seriesNo||0)),rd=L.filter(b=>b.status==='read').length,rt=L.filter(b=>b.rating),av=rt.length?rt.reduce((s,b)=>s+b.rating,0)/rt.length:0,au=[...new Set(L.map(b=>b.author).filter(Boolean))].join(', ');
@@ -1171,8 +1172,14 @@ function renderBooks(){
       return `<div class="sc" data-act="ser-open" data-n="${esc(n)}"><div class="stk">${slots.join('')||'<span class="tb">?</span>'}${tot>9?`<span class="tb">+${tot-9}</span>`:''}</div>
         <div><div class="nm">${esc(n)}</div><div class="muted" style="font-size:13px">${esc(au)}</div></div>
         <div><div class="pg"><i style="width:${tot?rd/tot*100:0}%"></i></div><div class="row" style="justify-content:space-between;margin-top:6px"><span class="muted mono" style="font-size:11px">${rd} of ${tot||'?'} read${L.some(b=>b.status==='reading')?' · reading now':''}</span>${av?starsHtml(Math.round(av)):''}</div></div></div>`}).join('')}</div>`:`<div class="empty">No series yet. Make one here, or set the Series field on any book.</div>`}`;
+  }else if(bkTab==='reread'){
+    const readNames=S.books.filter(b=>b.status==='read'&&!b.reread);
+    body=`<div class="card"><div class="gadd" style="grid-template-columns:1fr auto"><input data-k="rr-t" data-hold data-enter5="rr-add" placeholder="A book you want to read again" list="rr-l" autocomplete="off"><button class="btn sm" data-act="rr-add">Add</button></div>
+      <datalist id="rr-l">${readNames.map(b=>`<option value="${esc(b.title)}">`).join('')}</datalist>
+      <div class="blist">${rr.map((b,i)=>`<div class="bl" data-act="bk-open" data-id="${b.id}"><span class="n">${i+1}</span><div><div class="tt">${esc(b.title)}</div><div class="au">${esc(b.author||'')}${b.rating?' · '+'★'.repeat(b.rating):''}${b.finished?' · last read '+fmtShort(b.finished):''}${(b.reads||[]).length?' · read '+((b.reads||[]).length+1)+'×':''}</div></div>
+        <span class="row" style="gap:4px">${i>0?`<button class="icon-btn" data-act="rr-up" data-id="${b.id}" title="Move up">↑</button>`:''}<button class="btn sm" data-act="rr-start" data-id="${b.id}">Start</button></span></div>`).join('')||'<div class="empty" style="padding:8px 4px">Books you want to read again. Pick one you’ve already logged, or type any title.</div>'}</div></div>`;
   }else if(bkTab==='reading'){
-    body=reading.length?`<div class="rcur">${reading.map(b=>{const pct=b.pages&&b.atPage?Math.min(100,Math.round(b.atPage/b.pages*100)):null;return `<div class="rc" data-act="bk-open" data-id="${b.id}"><div><div class="tt">${esc(b.title)}</div><div class="muted" style="font-size:13px">${esc(b.author||'')}${b.series?' · '+serLbl(b):''}</div></div>
+    body=reading.length?`<div class="rcur">${reading.map(b=>{const pct=b.pages&&b.atPage?Math.min(100,Math.round(b.atPage/b.pages*100)):null;return `<div class="rc" data-act="bk-open" data-id="${b.id}"><div><div class="tt">${esc(b.title)}</div><div class="muted" style="font-size:13px">${esc(b.author||'')}${b.series?' · '+serLbl(b):''}${b.rereading?' · rereading':''}</div></div>
       ${pct!=null?`<div><div class="pg"><i style="width:${pct}%"></i></div><div class="muted mono" style="font-size:11px;margin-top:5px">page ${b.atPage} of ${b.pages} · ${pct}%</div></div>`:''}
       <div class="row" style="justify-content:space-between"><span class="muted mono" style="font-size:11px">${b.started?'started '+fmtShort(b.started):''}</span><span class="row" style="gap:6px">${b.pages?`<button class="btn sm" data-act="bk-page" data-id="${b.id}">Update page</button>`:''}<button class="btn pri sm" data-act="bk-finish" data-id="${b.id}">Finished</button></span></div></div>`}).join('')}</div>`:`<div class="empty">Not reading anything right now. Start one from your TBR.</div>`;
   }else{
@@ -1191,10 +1198,10 @@ function bkModal(b,preset,pre){
     <input id="bk-a" value="${esc(b.author||'')}" placeholder="Author">
     <div class="row" style="gap:8px"><input id="bk-sr" value="${esc(b.series||'')}" placeholder="Series (optional)" list="bk-srl" style="flex:1"><input id="bk-sn" value="${b.seriesNo||''}" placeholder="#" inputmode="decimal" style="width:64px;text-align:center"></div><datalist id="bk-srl">${Object.keys(bkSeries()).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
     <div class="wtypes" id="bk-s">${BK_ST.map(([k,l])=>`<span data-s="${k}" class="${status===k?'on':''}">${l}</span>`).join('')}</div>
+    <label id="bk-rrl" style="flex-direction:row;align-items:center;gap:10px;cursor:pointer"><span class="chk ${b.reread?'on':''}" id="bk-rr" style="margin:0"></span><span>Want to reread${(b.reads||[]).length?` <span class="muted">· read ${(b.reads||[]).length+1}×</span>`:''}</span></label>
     <div id="bk-rate"><span class="eyebrow">Rating</span><div class="rstar">${[1,2,3,4,5].map(i=>`<span data-r="${i}" class="${i<=rating?'on':''}">★</span>`).join('')}</div></div>
     <div><span class="eyebrow">Genres</span><div style="margin:6px 0" id="bk-g"></div><input id="bk-gi" placeholder="Type a genre and press Enter, e.g. Fantasy" list="bk-gl"><datalist id="bk-gl">${bkGenres().map(g=>`<option value="${esc(g)}">`).join('')}</datalist></div>
     <div class="row"><label>Started<input type="date" id="bk-sd" value="${b.started||''}"></label><label id="bk-fl">Finished<input type="date" id="bk-fd" value="${b.finished||''}"></label><label>Pages<input id="bk-p" inputmode="numeric" value="${b.pages||''}"></label></div>
-    <label>Format<div class="wtypes" id="bk-fmt">${['Paperback','Hardcover','Ebook','Audiobook'].map(f=>`<span data-f="${f}" class="${b.format===f?'on':''}">${f}</span>`).join('')}</div></label>
     <label id="bk-rvl"><span class="eyebrow">Review</span><textarea class="rv" id="bk-rv" placeholder="What did you think? What stuck with you, who would you recommend it to?">${esc(b.review||'')}</textarea></label>
     <label><span class="eyebrow">Favourite quotes</span><textarea id="bk-q" placeholder="Lines worth keeping">${esc(b.quotes||'')}</textarea></label>
     <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">${isNew?'Add':'Save'}</button></div></div>`,(d,close)=>{
@@ -1202,13 +1209,15 @@ function bkModal(b,preset,pre){
     const addG=()=>{const i=$('#bk-gi',d);i.value.split(',').map(x=>x.trim()).filter(Boolean).forEach(g=>{const ex=bkGenres().find(x=>x.toLowerCase()===g.toLowerCase())||g;if(!genres.some(x=>x.toLowerCase()===ex.toLowerCase()))genres.push(ex)});i.value='';drawG()};
     $('#bk-gi',d).addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();addG()}});$('#bk-gi',d).addEventListener('change',()=>{if(bkGenres().includes($('#bk-gi',d).value))addG()});
     drawG();
-    const sync=()=>{d.querySelectorAll('#bk-s span').forEach(s=>s.classList.toggle('on',s.dataset.s===status));const done=status==='read'||status==='dnf';$('#bk-fl',d).style.display=done?'':'none';$('#bk-rate',d).style.display=status==='tbr'?'none':'';$('#bk-rvl',d).style.display=status==='tbr'?'none':''};
+    $('#bk-rrl',d).onclick=e=>{e.preventDefault();$('#bk-rr',d).classList.toggle('on')};
+    const sync=()=>{d.querySelectorAll('#bk-s span').forEach(s=>s.classList.toggle('on',s.dataset.s===status));const done=status==='read'||status==='dnf';$('#bk-fl',d).style.display=done?'':'none';$('#bk-rate',d).style.display=status==='tbr'?'none':'';$('#bk-rrl',d).style.display=status==='read'||status==='dnf'?'':'none';$('#bk-rvl',d).style.display=status==='tbr'?'none':''};
     d.querySelectorAll('#bk-s span').forEach(s=>s.onclick=()=>{status=s.dataset.s;if((status==='read'||status==='dnf')&&!$('#bk-fd',d).value)$('#bk-fd',d).value=todayKey();if(status==='reading'&&!$('#bk-sd',d).value)$('#bk-sd',d).value=todayKey();sync()});sync();
     d.querySelectorAll('.rstar span').forEach(s=>s.onclick=()=>{const r=+s.dataset.r;rating=rating===r?0:r;d.querySelectorAll('.rstar span').forEach(x=>x.classList.toggle('on',+x.dataset.r<=rating))});
-    let fmt=b.format||'';d.querySelectorAll('#bk-fmt span').forEach(s=>s.onclick=()=>{fmt=fmt===s.dataset.f?'':s.dataset.f;d.querySelectorAll('#bk-fmt span').forEach(x=>x.classList.toggle('on',x.dataset.f===fmt))});
+    const fmt=b.format||'';
     d.querySelector('[data-a=c]').onclick=close;
     d.querySelector('[data-a=s]').onclick=()=>{const title=$('#bk-t',d).value.trim();if(!title){$('#bk-t',d).focus();return}if($('#bk-gi',d).value.trim())addG();
-      const rec={title,author:$('#bk-a',d).value.trim(),series:$('#bk-sr',d).value.trim(),seriesNo:parseFloat($('#bk-sn',d).value)||0,status,rating,genres,started:$('#bk-sd',d).value||'',finished:(status==='read'||status==='dnf')?($('#bk-fd',d).value||todayKey()):'',pages:parseInt($('#bk-p',d).value)||0,format:fmt,review:$('#bk-rv',d).value,quotes:$('#bk-q',d).value};
+      const rec={reread:$('#bk-rr',d).classList.contains('on'),title,author:$('#bk-a',d).value.trim(),series:$('#bk-sr',d).value.trim(),seriesNo:parseFloat($('#bk-sn',d).value)||0,status,rating,genres,started:$('#bk-sd',d).value||'',finished:(status==='read'||status==='dnf')?($('#bk-fd',d).value||todayKey()):'',pages:parseInt($('#bk-p',d).value)||0,format:fmt,review:$('#bk-rv',d).value,quotes:$('#bk-q',d).value};
+      if(!isNew&&b.rereading&&status==='read'){rec.rereading=false;rec.reread=false;rec.reads=[...(b.reads||[])];}
       close();if(isNew){store.put('books',uid(),{...rec,order:Date.now(),createdAt:Date.now()})}else store.patch('books',b.id,rec);
       if(status!=='tbr'&&bkTab!==status&&bkSer==null&&!(status==='dnf')){bkTab=status;render()}};
     const del=d.querySelector('[data-a=del]');if(del)del.onclick=async()=>{close();if(await confirmBox(`Delete “${b.title}”${b.review?' and your review':''}?`,'Delete'))store.del('books',b.id)};
@@ -1236,6 +1245,13 @@ function serModal(name){const isNew=name==null;const M=bkSeries(),L=isNew?[]:(M[
   });
 }
 function bookAct(a,el){const id=el.dataset.id,b=id&&S.books.find(x=>x.id===id);
+  if(a==='rr-add'){const T=$('[data-k=rr-t]');const title=T.value.trim();if(!title){T.focus();return}T.value='';
+    const ex=S.books.find(x=>x.title.toLowerCase()===title.toLowerCase()&&(x.status==='read'||x.status==='dnf'));
+    if(ex)store.patch('books',ex.id,{reread:true,rrOrder:Date.now()});else store.put('books',uid(),{title,author:'',status:'read',genres:[],rating:0,finished:'',reread:true,rrOrder:Date.now(),order:Date.now(),createdAt:Date.now()});
+    const n=$('[data-k=rr-t]');n&&n.focus();return}
+  if(a==='rr-up'&&b){const L=S.books.filter(x=>x.reread&&x.status!=='reading').sort((x,y)=>(x.rrOrder??x.createdAt)-(y.rrOrder??y.createdAt)),i=L.findIndex(x=>x.id===b.id);if(i<1)return;const p=L[i-1],po=p.rrOrder??p.createdAt,bo=b.rrOrder??b.createdAt;store.patch('books',b.id,{rrOrder:po});store.patch('books',p.id,{rrOrder:bo===po?po+1:bo});return}
+  if(a==='rr-start'&&b){const reads=[...(b.reads||[])];if(b.finished||b.started)reads.push({started:b.started||'',finished:b.finished||'',rating:b.rating||0});
+    store.patch('books',b.id,{status:'reading',rereading:true,reads,started:todayKey(),finished:'',atPage:0});toast(`Rereading “${b.title}”`);return}
   if(a==='ser-new'){serModal(null);return}
   if(a==='ser-enter'){bkSer=el.dataset.n;render();window.scrollTo&&window.scrollTo(0,0);return}
   if(a==='ser-back'){bkSer=null;render();return}
@@ -1257,7 +1273,7 @@ function bookAct(a,el){const id=el.dataset.id,b=id&&S.books.find(x=>x.id===id);
   if(a==='bk-goal'){const g=+((S.settings||{}).bookGoal)||0;modal(`<div class="eyebrow">Reading goal for ${new Date().getFullYear()}</div><label>Books this year<input class="big" id="bg" inputmode="numeric" value="${g||''}" placeholder="e.g. 12"></label><div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Save</button></div>`,(d,close)=>{
     const s=()=>{close();store.settings({bookGoal:parseInt($('#bg',d).value)||0})};d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=s]').onclick=s;$('#bg',d).addEventListener('keydown',e=>{if(e.key==='Enter')s()});setTimeout(()=>$('#bg',d).select(),30)});return}
 }
-const BOOK_ACTS=['ser-enter','ser-back','ser-add','ser-mv','ser-new','ser-open','bk-tab','bk-year','bk-genre','bk-new','bk-open','bk-start','bk-finish','bk-page','tbr-add','tbr-up','bk-goal'];
+const BOOK_ACTS=['rr-add','rr-up','rr-start','ser-enter','ser-back','ser-add','ser-mv','ser-new','ser-open','bk-tab','bk-year','bk-genre','bk-new','bk-open','bk-start','bk-finish','bk-page','tbr-add','tbr-up','bk-goal'];
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t&&t.dataset&&t.dataset.enter5){e.preventDefault();bookAct(t.dataset.enter5,t)}});
 /* ---------- cube times ---------- */
 let cubeOpen=new Set(),cubeFlash=null;
