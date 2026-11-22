@@ -480,6 +480,13 @@ nav .navsec:first-child{margin-top:0}
 .rc .pg{height:4px;background:#1c1c1c;border-radius:2px;overflow:hidden}
 .rc .pg i{display:block;height:100%;background:var(--tx2)}
 @media (max-width:700px){.bkst{grid-template-columns:repeat(2,1fr)}.bkgrid{grid-template-columns:repeat(2,1fr);gap:12px}}
+.cw{display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 20px 20px;margin-bottom:20px}
+.cw .wtypes{justify-content:center}
+.cwt{font:700 96px/1 'Chakra Petch',sans-serif;letter-spacing:-.02em;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;padding:6px 18px;border-radius:14px;color:var(--tx)}
+.cwt.run{color:#fff}
+.cwt.idle{color:var(--tx3)}
+.cw .last{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;font-size:13px;color:var(--tx3)}
+@media (max-width:700px){.cwt{font-size:64px}}
 /* cube times */
 .recs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
 .rec{flex:1 1 150px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--s1);cursor:pointer}
@@ -1282,17 +1289,23 @@ function renderCubes(){
       ${show.map(x=>{const v=solveVal(x),n=L.indexOf(x)+1;return `<div class="sv" data-act="cube-solve" data-id="${x.id}"><span class="sn">${n}</span><span class="st ${pb&&x.id===pb.id?'pbm':''}">${fmtSolve(v)}${x.plus2?'<span class="sp2"> +2</span>':''}</span><span class="sp2">${x.note?esc(x.note).slice(0,24):''}</span><span class="sd">${fmtAt(x.at)}</span></div>`}).join('')||'<div class="empty" style="padding:6px 2px">Type a time and press Enter. The date and time are saved for you.</div>'}
       ${L.length>5?`<div style="margin-top:8px"><span class="lnk muted" style="font-size:12.5px;cursor:pointer;text-decoration:underline" data-act="cube-more" data-id="${c.id}">${open?'Show less':`Show all ${L.length}`}</span></div>`:''}
     </div>`}).join('');
-  return `<div class="head"><div class="l"><span class="eyebrow">Cube times · ${S.solves.length} ${S.solves.length===1?'solve':'solves'}</span><h1>Records</h1></div><button class="btn sm" data-act="cube-new">+ Add cube</button></div>
+  return `<div class="head"><div class="l"><span class="eyebrow">Rubik’s Cubes · ${S.solves.length} ${S.solves.length===1?'solve':'solves'}</span><h1>Records</h1></div><button class="btn sm" data-act="cube-new">+ Add cube</button></div>
     <div class="recs">${recs}</div>
+    ${cwPanel()}
     <div class="cubes">${cards}</div>`;
 }
 function cubeEnsure(){if(!Array.isArray((S.settings||{}).cubes)||!(S.settings.cubes||[]).length)store.settings({cubes:CUBE_DEFAULT.map(x=>({...x}))})}
 function cubeAdd(cid){const inp=$(`[data-cube="${cid}"]`);if(!inp)return;const r=parseSolve(inp.value);if(!r){toast('Type a time like 42.18 or 1:05.30');inp.focus();return}
-  cubeEnsure();const L=solvesOf(cid),old=cubePB(L),oldv=old?solveVal(old):Infinity;inp.value='';
-  store.put('solves',uid(),{cube:cid,ms:r.ms,...(r.dnf?{dnf:true}:{}),at:Date.now()});
-  if(!r.dnf&&r.ms<oldv&&L.length){cubeFlash=cid;toast('New record! '+fmtSolve(r.ms));render();setTimeout(()=>{cubeFlash=null},1500)}
-  const n=$(`[data-cube="${cid}"]`);n&&n.focus()}
+  inp.value='';cubeSave(cid,r.ms,r.dnf);const n=$(`[data-cube="${cid}"]`);n&&n.focus()}
+function cubeSave(cid,ms,dnf){cubeEnsure();const L=solvesOf(cid),old=cubePB(L),oldv=old?solveVal(old):Infinity;const id=uid();
+  store.put('solves',id,{cube:cid,ms,...(dnf?{dnf:true}:{}),at:Date.now()});
+  if(!dnf&&ms<oldv&&L.length){cubeFlash=cid;toast('New record! '+fmtSolve(ms));render();setTimeout(()=>{cubeFlash=null},1500)}
+  return id}
 function cubeAct(a,el){const id=el.dataset.id;
+  if(a==='cw-cube'){if(!cw.running){cw.cube=id;cw.lastId=null;render()}return}
+  if(a==='cw-pen'){const x=S.solves.find(s=>s.id===cw.lastId);if(!x)return;const p=el.dataset.p;
+    if(p==='del'){store.del('solves',x.id);cw.lastId=null;toast('Deleted');return}
+    if(p==='p2')store.patch('solves',x.id,{plus2:!x.plus2,dnf:false});else store.patch('solves',x.id,{dnf:!x.dnf,plus2:false});return}
   if(a==='cube-add'){cubeAdd(id);return}
   if(a==='cube-more'){cubeOpen.has(id)?cubeOpen.delete(id):cubeOpen.add(id);render();return}
   if(a==='cube-jump'){const c=$('#cube-'+id);c&&c.scrollIntoView({behavior:'smooth',block:'start'});const i=$(`[data-cube="${id}"]`);if(i&&!window.matchMedia('(hover:none)').matches)setTimeout(()=>i.focus({preventScroll:true}),300);return}
@@ -1321,7 +1334,28 @@ function cubeAct(a,el){const id=el.dataset.id;
       d.querySelector('[data-a=s]').onclick=save;d.querySelector('[data-a=c]').onclick=close;d.querySelector('[data-a=del]').onclick=()=>{close();store.del('solves',x.id)};
       ['#sv-t','#sv-n'].forEach(s=>$(s,d).addEventListener('keydown',e=>{if(e.key==='Enter')save()}))});return}
 }
-const CUBE_ACTS=['cube-add','cube-more','cube-jump','cube-new','cube-edit','cube-solve'];
+// ---- stopwatch ----
+let cw={running:false,t0:0,cube:null,lastId:null,raf:0};
+const cwFmt=ms=>{const t=(cw.running?Math.floor(ms/10):Math.round(ms/10))/100,m=Math.floor(t/60),s=(t-m*60).toFixed(2);return m?`${m}:${s.padStart(5,'0')}`:s};
+const cwHtml=ms=>cwFmt(ms).split('').map(c=>/\d/.test(c)?`<span class="dg">${c}</span>`:`<span class="cl">${c}</span>`).join('');
+function cwTick(){const e=$('#cw-t');if(e&&cw.running)e.innerHTML=cwHtml(performance.now()-cw.t0);if(cw.running)cw.raf=requestAnimationFrame(cwTick)}
+function cwToggle(){
+  if(!cw.cube||!cubeList().some(c=>c.id===cw.cube))cw.cube=cubeList()[0].id;
+  if(!cw.running){const a=document.activeElement;a&&a.blur&&a.blur();cw.running=true;cw.t0=performance.now();cw.lastId=null;render();cancelAnimationFrame(cw.raf);cwTick();return}
+  const ms=Math.round(performance.now()-cw.t0);cw.running=false;cancelAnimationFrame(cw.raf);
+  cw.lastId=cubeSave(cw.cube,ms);cw.lastMs=ms;render()}
+function cwPanel(){const C=cubeList();if(!cw.cube||!C.some(c=>c.id===cw.cube))cw.cube=C[0].id;
+  const last=cw.lastId&&S.solves.find(x=>x.id===cw.lastId);
+  const shown=cw.running?0:last?solveVal(last):0;
+  return `<div class="card cw"><div class="wtypes">${C.map(c=>`<span class="${c.id===cw.cube?'on':''}" data-act="cw-cube" data-id="${c.id}">${esc(c.name)}</span>`).join('')}</div>
+    <div class="cwt ${cw.running?'run':last?'':'idle'}" id="cw-t" data-cwtap>${last&&last.dnf&&!cw.running?'DNF':cwHtml(isFinite(shown)?shown:0)}</div>
+    <button class="btn ${cw.running?'':'pri'}" data-cwtap style="min-width:140px">${cw.running?'Stop':'Start'}</button>
+    ${last&&!cw.running?`<div class="last"><span>Saved to ${esc((C.find(c=>c.id===last.cube)||{}).name||'')}</span><button class="btn sm ${last.plus2?'pri':''}" data-act="cw-pen" data-p="p2">+2</button><button class="btn sm ${last.dnf?'pri':''}" data-act="cw-pen" data-p="dnf">DNF</button><button class="ghost danger-t" data-act="cw-pen" data-p="del">Delete</button></div>`:`<div class="muted" style="font-size:12px">${cw.running?'Tap the time or press any key to stop':'Tap Start or press Space · it saves to the cube you pick'}</div>`}</div>`}
+document.addEventListener('pointerdown',e=>{if(view!=='cubes'||!e.target.closest)return;const t=e.target.closest('[data-cwtap]');if(t){e.preventDefault();cwToggle()}else if(cw.running&&!e.target.closest('#modal-root')){cwToggle()}},true);
+document.addEventListener('keydown',e=>{if(view!=='cubes'||modalOpen())return;const el=e.target,typing=el.matches&&el.matches('input,textarea,[contenteditable]');
+  if(cw.running){if(e.repeat)return;e.preventDefault();cwToggle();return}
+  if(e.code==='Space'&&!typing&&!e.repeat){e.preventDefault();cwToggle()}},true);
+const CUBE_ACTS=['cw-cube','cw-pen','cube-add','cube-more','cube-jump','cube-new','cube-edit','cube-solve'];
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t&&t.dataset&&t.dataset.cube){e.preventDefault();cubeAdd(t.dataset.cube)}});
 /* ---------- quote board ---------- */
 let qYear=null,qSel=null,qPhoneMode='list';
@@ -1420,7 +1454,7 @@ const QUOTE_ACTS=['q-year','q-add','q-mode','q-open','q-addyear'];
 })();
 function renderSide(){
   const t=T(),ms=elapsed();
-  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['body','Fitness','Fitness'],['books','Books','Books'],['cubes','Cube times','Cubes'],['money','Money','Money'],['quotes','Quote board','Quotes']];
+  const nav=[['focus','Focus','Focus'],['lists','Checklists','Lists'],['habits','Habits','Habits'],['progress','Progress & Log','Progress'],['body','Fitness','Fitness'],['books','Books','Books'],['cubes','Rubik’s Cubes','Cubes'],['money','Money','Money'],['quotes','Quote board','Quotes']];
   const NAVSEC={focus:'Grind',body:'Play',money:'Life'};
   const goal=S.settings.gpaGoal||'';
   const sync=mode==='file'?`<div class="filebox" data-act="switch-file" title="${ghMode?'Sync status':'Click to switch or reconnect your data file'}"><span class="fn">${esc(ghMode?'GitHub sync':FILES.study.handle.name)}</span><div class="sync live"><i></i><span data-save="study">${FILES.study.state||'Saved'}</span></div></div>`:mode==='local'?'<div class="sync"><i></i>Saved in this browser only</div>':'';
