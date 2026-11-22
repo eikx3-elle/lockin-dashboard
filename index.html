@@ -92,6 +92,8 @@ h2{font-size:13px;font-weight:500;color:var(--tx2)}
 /* focus */
 .focus{display:flex;flex-direction:column;align-items:center;padding:40px 0 44px;gap:14px}
 .dg{display:inline-block;width:.6em;text-align:center}
+.mini .dg,.mini .cl{display:inline;width:auto;position:static}
+.sessdone{margin-top:18px;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:640px}
 .cl{display:inline-block;width:.28em;text-align:center;position:relative;top:-.06em}
 .clock{font:700 120px/1 'Chakra Petch',sans-serif;letter-spacing:-.02em;font-feature-settings:'tnum';font-variant-numeric:tabular-nums;color:var(--tx);transition:color .2s}
 .clock.idle{color:var(--tx4)}
@@ -991,19 +993,21 @@ function confirmBox(msg,ok='Delete'){
 }
 
 /* ---------- session modal ---------- */
+const SESS_GRACE=60e3;
+const tickedThisSession=start=>start?S.tasks.filter(t=>t.done&&!t.sessionId&&t.doneAt>=start-SESS_GRACE).sort((a,b)=>a.doneAt-b.doneAt):[];
 function sessionModal(o){
   const s=o.session, isTimer=o.mode==='timer', isEdit=o.mode==='edit';
   const start=s?s.start:(o.start||Date.now()-3600e3);
   let mins=s?Math.round(s.durSec/60):isTimer?Math.max(1,Math.round(o.ms/60000)):60;
   const sd=new Date(start);
-  const auto=isTimer?S.tasks.filter(t=>t.done&&!t.sessionId&&t.doneAt>=start):[];
+  const auto=isTimer?tickedThisSession(start):[];
   const open=S.tasks.filter(t=>!t.done&&!isArch(t.folderId));
   const groups={};
   open.forEach(t=>{(groups[t.folderId]=groups[t.folderId]||[]).push(t)});
   const pickHtml=isEdit?'':`
     <div><div class="eyebrow" style="margin-bottom:8px">Ticked off this session</div>
     <div class="pick">
-      ${auto.length?`<div class="pf">Already ticked</div>${auto.map(t=>`<div class="pi"><div class="chk on" data-pick="${t.id}"></div><span>${esc(t.text)} <span class="muted">· ${esc(folderName(t.folderId))}</span></span></div>`).join('')}`:''}
+      ${auto.length?`<div class="pf">Ticked during this session · included</div>${auto.map(t=>`<div class="pi"><div class="chk on" data-pick="${t.id}"></div><span>${esc(t.text)} <span class="muted">· ${esc(folderName(t.folderId))}</span></span></div>`).join('')}`:''}
       ${foldersSorted().filter(f=>groups[f.id]).map(f=>`<div class="pf">${esc(f.name)}</div>${groups[f.id].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).map(t=>`<div class="pi"><div class="chk" data-pick="${t.id}"></div><span>${esc(t.text)}</span></div>`).join('')}`).join('')}
       ${!auto.length&&!open.length?'<div class="empty">No open checklist items.</div>':''}
     </div></div>`;
@@ -1491,6 +1495,7 @@ function renderFocus(){
     <div class="clock ${st}" data-clock>00:00:00</div>
     <div class="clock-sub">${sub}</div>
     <div class="controls">${ctrls}</div>
+    ${st!=='idle'?(()=>{const L=tickedThisSession(t.firstStart);return L.length?`<div class="sessdone"><div class="eyebrow">Done this session · ${L.length}</div><div class="chips" style="justify-content:center">${L.map(x=>`<span class="chip">✓ ${esc(x.text)}<em>${esc(folderName(x.folderId))}</em></span>`).join('')}</div></div>`:`<div class="muted" style="font-size:12px;margin-top:14px">Tick items off in Checklists as you go. They’ll be added to this session.</div>`})():''}
     <div class="hint">SPACE  start / pause${st==='paused'?' · <span data-act="timer-reset" style="cursor:pointer;text-decoration:underline">reset</span>':''}</div>
   </div>
   <div class="planblock">${renderPlan()}</div>
