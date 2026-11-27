@@ -545,6 +545,21 @@ nav .navsec:first-child{margin-top:0}
 .qnote textarea.qfn{min-height:260px;font:400 15px/1.6 'Chakra Petch',sans-serif;resize:vertical}
 .qmode{display:none}
 @media (max-width:700px){.qmode{display:inline-flex}.qnote .qq{font-size:21px}}
+/* progress photos (end-to-end encrypted) */
+.phlock{max-width:340px;margin:30px auto;display:flex;flex-direction:column;gap:14px;align-items:stretch;text-align:center}
+.phlock .ic{font-size:30px;color:var(--tx3)}
+.phlock input{font:600 24px var(--mono);letter-spacing:.35em;text-align:center}
+.phgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.pht{position:relative;aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:#141414;border:1px solid var(--line);cursor:pointer}
+.pht img{width:100%;height:100%;object-fit:cover;display:block}
+.pht .d{position:absolute;left:0;right:0;bottom:0;padding:18px 9px 7px;font:11px var(--mono);color:#ddd;background:linear-gradient(transparent,rgba(0,0,0,.75))}
+.pht.sel{outline:2px solid var(--tx);outline-offset:2px}
+.pht .ld{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:11px var(--mono);color:var(--tx4)}
+.phv{display:flex;flex-direction:column;gap:12px}
+.phv img{max-width:100%;max-height:68vh;object-fit:contain;border-radius:10px;margin:0 auto;display:block;background:#0c0c0c}
+.phcmp{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.phcmp img{width:100%;max-height:64vh;object-fit:contain;border-radius:10px;background:#0c0c0c}
+@media (max-width:700px){.phgrid{grid-template-columns:repeat(3,1fr);gap:6px}}
 /* training log */
 .wtypes{display:flex;flex-wrap:wrap;gap:6px}
 .wtypes span{font-size:13px;color:var(--tx3);border:1px solid var(--line2);border-radius:999px;padding:6px 13px;cursor:pointer;user-select:none}
@@ -781,7 +796,7 @@ const todayKey=()=>dayKey(new Date());
 const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
 /* ---------- state ---------- */
-const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],quotes:[],solves:[],books:[],food:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],groceries:[],settings:{},bodySettings:{},moneySettings:{}};
+const S={sessions:[],folders:[],tasks:[],events:[],plans:[],habits:[],quotes:[],solves:[],books:[],food:[],photos:[],meals:[],workouts:[],weights:[],ingredients:[],recipes:[],weekplans:[],shops:[],expenses:[],groceries:[],settings:{},bodySettings:{},moneySettings:{}};
 const COLS=['sessions','folders','tasks','events'];
 let mode='starting';
 const hasFS=typeof window.showSaveFilePicker==='function'&&typeof window.showOpenFilePicker==='function';
@@ -799,7 +814,7 @@ async function safe(p){try{return await p}catch(e){console.error(e);toast(e&&e.c
 
 /* ---------- storage: two files (study + body) ---------- */
 const STUDY_COLS=['sessions','folders','tasks','events','plans','habits','quotes','solves','books'];
-const BODY_COLS=['food','meals','workouts','weights','ingredients','recipes','weekplans','shops'];
+const BODY_COLS=['food','meals','workouts','weights','ingredients','recipes','weekplans','shops','photos'];
 const mkFile=(name,idbKey,cols,sk,suggested)=>({name,idbKey,cols,sk,suggested,handle:null,pending:null,lastWrite:0,saving:false,dirty:false,ops:[],timer:null,state:''});
 const FILES={study:mkFile('study','file',STUDY_COLS,'settings','lockin-work.json'),body:mkFile('body','bodyfile',BODY_COLS,'bodySettings','lockin-fitness.json'),money:mkFile('money','moneyfile',['expenses','groceries'],'moneySettings','lockin-money.json')};
 const fileOf=col=>col==='expenses'?FILES.money:BODY_COLS.includes(col)?FILES.body:FILES.study;
@@ -2124,7 +2139,107 @@ function wtModal(){
   });
 }
 function woTypeIn(w,list){if(w.type)return w.type;const g=woGuess((w.text||'').toLowerCase());return list.some(x=>x.id===g)?g:(list.some(x=>x.id==='other')?'other':list[list.length-1].id)}
-function trTabs(){return `<div class="ftabs">${[['today','Today'],['log','Training log']].map(([k,l])=>`<span class="${trTab===k?'on':''}" data-act="tr-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
+/* ---------- progress photos: encrypted on this device before upload ----------
+   Password -> PBKDF2 (SHA-256, 600k rounds) -> AES-GCM key. The password and key are never saved or uploaded.
+   Photo files, thumbnails, dates and notes are all encrypted; GitHub only ever stores unreadable bytes. */
+const PH={key:null,urls:{},full:{},busy:0,cmp:null,idle:null};
+const PH_ITER=600000,PH_CHECK='lockin-photos-v1';
+const u8b64=u=>{let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+const b64u8=b=>Uint8Array.from(atob(String(b).replace(/\s/g,'')),c=>c.charCodeAt(0));
+async function phDerive(pw,salt,iter){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function phEnc(bytes){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},PH.key,bytes));const out=new Uint8Array(12+ct.length);out.set(iv);out.set(ct,12);return out}
+async function phDec(buf){const u=buf instanceof Uint8Array?buf:new Uint8Array(buf);return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(0,12)},PH.key,u.slice(12)))}
+const phLockCfg=()=>(S.bodySettings||{}).photoLock||null;
+function phMeta(p){return PH.meta&&PH.meta[p.id]}
+async function phLoadMeta(){PH.meta={};for(const p of S.photos){try{PH.meta[p.id]=JSON.parse(new TextDecoder().decode(await phDec(b64u8(p.m))))}catch(e){}}}
+async function phUnlock(pw,confirm){
+  const cfg=phLockCfg();
+  if(!cfg){const salt=crypto.getRandomValues(new Uint8Array(16));PH.key=await phDerive(pw,salt,PH_ITER);const chk=await phEnc(new TextEncoder().encode(PH_CHECK));
+    store.bodySettings({photoLock:{v:1,salt:u8b64(salt),iter:PH_ITER,check:u8b64(chk)}});await phLoadMeta();return true}
+  const key=await phDerive(pw,b64u8(cfg.salt),cfg.iter||PH_ITER);const prev=PH.key;PH.key=key;
+  try{const t=new TextDecoder().decode(await phDec(b64u8(cfg.check)));if(t!==PH_CHECK)throw 0}catch(e){PH.key=prev;return false}
+  await phLoadMeta();phArmIdle();return true}
+function phLock(){PH.key=null;PH.meta=null;Object.values(PH.urls).forEach(u=>URL.revokeObjectURL(u));Object.values(PH.full).forEach(u=>URL.revokeObjectURL(u));PH.urls={};PH.full={};PH.cmp=null;clearTimeout(PH.idle)}
+function phArmIdle(){clearTimeout(PH.idle);PH.idle=setTimeout(()=>{if(PH.key){phLock();if(view==='body'&&trTab==='photos')render()}},5*60e3)}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&PH.key){phLock();if(view==='body')render()}});
+async function phGetFile(path){const r=await ghReq('/contents/'+path,{headers:{'Accept':'application/vnd.github.raw'}});if(!r.ok)throw new Error('photo '+r.status);return new Uint8Array(await r.arrayBuffer())}
+async function phPutFile(path,bytes){const r=await ghReq('/contents/'+path,{method:'PUT',body:JSON.stringify({message:'Add encrypted file',content:u8b64(bytes)})});if(!r.ok)throw new Error('upload '+r.status);return (await r.json()).content.sha}
+async function phDelFile(path){const r=await ghReq('/contents/'+path);if(r.status===404)return;if(!r.ok)throw new Error('lookup '+r.status);const j=await r.json();
+  const d=await ghReq('/contents/'+path,{method:'DELETE',body:JSON.stringify({message:'Remove encrypted file',sha:j.sha})});if(!d.ok&&d.status!==404)throw new Error('delete '+d.status)}
+async function phResize(file,max,q){const bmp=await createImageBitmap(file,{imageOrientation:'from-image'});const s=Math.min(1,max/Math.max(bmp.width,bmp.height));
+  const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);bmp.close&&bmp.close();
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));return new Uint8Array(await blob.arrayBuffer())}
+async function phThumb(p){if(PH.urls[p.id])return PH.urls[p.id];const b=await phDec(await phGetFile(`photos/${p.id}.t`));const u=URL.createObjectURL(new Blob([b],{type:'image/jpeg'}));PH.urls[p.id]=u;return u}
+async function phFull(p){if(PH.full[p.id])return PH.full[p.id];const b=await phDec(await phGetFile(`photos/${p.id}.p`));const u=URL.createObjectURL(new Blob([b],{type:'image/jpeg'}));PH.full[p.id]=u;return u}
+function phSorted(){return S.photos.filter(p=>phMeta(p)).sort((a,b)=>(phMeta(b).date||'').localeCompare(phMeta(a).date||'')||(phMeta(b).at||0)-(phMeta(a).at||0))}
+function phWeightOn(day){const w=S.weights.filter(x=>x.day===day).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];return w?w.kg:null}
+function renderPhotos(){
+  if(!ghMode)return `<div class="empty">Progress photos need GitHub sync, so they can be stored encrypted in your private data repo. They’re available in the installed app.</div>`;
+  if(!PH.key){const first=!phLockCfg();return `<div class="phlock"><div class="ic"><svg width="30" height="34" viewBox="0 0 30 34" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="15" width="24" height="17" rx="3"/><path d="M8 15V10a7 7 0 0 1 14 0v5"/></svg></div><div style="font-weight:600;font-size:17px">${first?'Set a password for your photos':'Photos are locked'}</div>
+    <div class="muted" style="font-size:12.5px;line-height:1.5">${first?'Your photos are encrypted with this password on your device before they’re backed up. It’s never saved or uploaded, so it can’t be recovered if you forget it.':'Enter your password. Photos lock again when you leave the app or after 5 minutes.'}</div>
+    <input type="password" id="ph-pw" inputmode="numeric" autocomplete="off" placeholder="••••••">${first?'<input type="password" id="ph-pw2" inputmode="numeric" autocomplete="off" placeholder="again">':''}
+    <button class="btn pri" data-act="ph-unlock">${first?'Set password':'Unlock'}</button><div id="ph-err" class="muted" style="font-size:12.5px;min-height:16px"></div></div>`}
+  phArmIdle();
+  const L=phSorted();let curM='',grid='';
+  L.forEach(p=>{const m=phMeta(p),mk=(m.date||'').slice(0,7);if(mk!==curM){if(curM)grid+='</div>';curM=mk;const d=fromKey(mk+'-01');grid+=`<div class="mhd">${MON[d.getMonth()]} ${d.getFullYear()}</div><div class="phgrid">`}
+    const w=phWeightOn(m.date);grid+=`<div class="pht ${PH.cmp&&PH.cmp.includes(p.id)?'sel':''}" data-act="ph-open" data-id="${p.id}"><span class="ld">…</span><img data-ph="${p.id}" alt="" style="opacity:0"><span class="d">${fmtShort(m.date)}${w?' · '+w+' kg':''}</span></div>`});
+  if(curM)grid+='</div>';
+  setTimeout(phFillThumbs,0);
+  return `<div class="row" style="gap:8px;margin-bottom:14px;flex-wrap:wrap"><label class="btn pri sm" style="cursor:pointer">+ Add photos<input type="file" accept="image/*" multiple id="ph-file" style="display:none"></label>
+      ${L.length>1?`<button class="btn sm ${PH.cmp?'pri':''}" data-act="ph-cmp">${PH.cmp?`Compare: pick ${2-PH.cmp.length} more`:'Compare'}</button>`:''}${PH.cmp?'<button class="ghost" data-act="ph-cmpx">Cancel</button>':''}
+      <span class="muted" style="font-size:12px;margin-left:auto">${PH.busy?`Encrypting & uploading ${PH.busy}…`:`${L.length} photo${L.length===1?'':'s'} · end-to-end encrypted`}</span></div>
+    ${grid||'<div class="empty">No photos yet. Add your first one. It’ll be dated and encrypted before it leaves this device.</div>'}`;
+}
+async function phFillThumbs(){for(const img of document.querySelectorAll('img[data-ph]')){if(img.src)continue;const p=S.photos.find(x=>x.id===img.dataset.ph);if(!p)continue;
+  try{const u=await phThumb(p);if(!document.body.contains(img))continue;img.src=u;img.style.opacity=1;const l=img.parentNode.querySelector('.ld');l&&l.remove()}catch(e){const l=img.parentNode.querySelector('.ld');if(l)l.textContent=navigator.onLine?'error':'offline'}}}
+document.addEventListener('change',async e=>{if(e.target.id!=='ph-file'||!PH.key)return;const files=[...e.target.files];e.target.value='';if(!files.length)return;
+  // confirm the date for each photo (defaults to the photo's own date)
+  const def=f=>{const d=new Date(f.lastModified||Date.now());return dayKey(d)};
+  modal(`<div class="eyebrow">Add ${files.length} photo${files.length===1?'':'s'}</div>
+    <div class="row"><label>Date<input type="date" id="pa-d" value="${files.length===1?def(files[0]):todayKey()}"></label></div>
+    <label>Note (optional)<input id="pa-n" placeholder="e.g. morning, fasted, after leg day"></label>
+    <div class="muted" style="font-size:12px">Resized and encrypted on this device, then backed up to your private repo.</div>
+    <div class="row-end"><button class="btn" data-a="c">Cancel</button><button class="btn pri" data-a="s">Encrypt & save</button></div>`,(d,close)=>{
+    d.querySelector('[data-a=c]').onclick=close;
+    d.querySelector('[data-a=s]').onclick=async()=>{const date=$('#pa-d',d).value||todayKey(),note=$('#pa-n',d).value.trim();close();
+      PH.busy=files.length;render();let ok=0;
+      for(const f of files){try{const id='p'+uid();const full=await phResize(f,1800,.86),th=await phResize(f,420,.76);
+        await phPutFile(`photos/${id}.p`,await phEnc(full));await phPutFile(`photos/${id}.t`,await phEnc(th));
+        const meta={date,note,at:Date.now()};const m=u8b64(await phEnc(new TextEncoder().encode(JSON.stringify(meta))));
+        PH.meta[id]=meta;store.put('photos',id,{m});ok++}catch(err){console.warn(err);toast('Upload failed'+(navigator.onLine?'':' (offline)'))}
+        PH.busy--;render()}
+      if(ok)toast(`Saved ${ok} photo${ok===1?'':'s'}, encrypted`)};
+  })});
+async function phOpen(p){const m=phMeta(p);if(!m)return;const w=phWeightOn(m.date);
+  modal(`<div class="phv"><div class="row" style="justify-content:space-between"><span class="eyebrow">${fmtDay(fromKey(m.date))} ${fromKey(m.date).getFullYear()}${w?' · '+w+' kg':''}</span><button class="ghost danger-t" data-a="del">Delete</button></div>
+    <div id="phv-img" style="min-height:200px;display:flex;align-items:center;justify-content:center" class="muted">Decrypting…</div>
+    <div class="row"><label>Date<input type="date" id="pv-d" value="${m.date}"></label><label style="flex:2">Note<input id="pv-n" value="${esc(m.note||'')}" placeholder="optional"></label></div>
+    <div class="row-end"><button class="btn" data-a="c">Close</button><button class="btn pri" data-a="s">Save</button></div></div>`,(d,close)=>{
+    phFull(p).then(u=>{const b=$('#phv-img',d);if(b)b.innerHTML=`<img src="${u}" alt="">`}).catch(()=>{const b=$('#phv-img',d);if(b)b.textContent='Couldn’t load this photo.'});
+    d.querySelector('[data-a=c]').onclick=close;
+    d.querySelector('[data-a=s]').onclick=async()=>{const meta={...m,date:$('#pv-d',d).value||m.date,note:$('#pv-n',d).value.trim()};close();PH.meta[p.id]=meta;store.patch('photos',p.id,{m:u8b64(await phEnc(new TextEncoder().encode(JSON.stringify(meta))))})};
+    d.querySelector('[data-a=del]').onclick=async()=>{close();if(!await confirmBox('Delete this photo? It’s removed from your backup too.','Delete'))return;
+      store.del('photos',p.id);try{await phDelFile(`photos/${p.id}.p`);await phDelFile(`photos/${p.id}.t`)}catch(e){toast('Removed from the list; the file will be cleaned up next time you’re online')}};
+  },'x')}
+async function phCompare(a,b){const [pa,pb]=[a,b].map(id=>S.photos.find(x=>x.id===id)).sort((x,y)=>(phMeta(x).date||'').localeCompare(phMeta(y).date||''));
+  modal(`<div class="eyebrow">Compare</div><div class="phcmp">${[pa,pb].map(p=>{const m=phMeta(p),w=phWeightOn(m.date);return `<div><div id="cmp-${p.id}" class="muted" style="min-height:160px;display:flex;align-items:center;justify-content:center">Decrypting…</div><div class="muted mono" style="font-size:11.5px;text-align:center;margin-top:6px">${fmtShort(m.date)} ${fromKey(m.date).getFullYear()}${w?' · '+w+' kg':''}</div></div>`}).join('')}</div>
+    <div class="muted" style="font-size:12px;text-align:center">${Math.round((fromKey(phMeta(pb).date)-fromKey(phMeta(pa).date))/864e5)} days apart</div><div class="row-end"><button class="btn pri" data-a="c">Close</button></div>`,(d,close)=>{
+    [pa,pb].forEach(p=>phFull(p).then(u=>{const b=$('#cmp-'+p.id,d);if(b)b.outerHTML=`<img src="${u}" alt="">`}));d.querySelector('[data-a=c]').onclick=close},'x')}
+async function photoAct(a,el){
+  if(a==='ph-unlock'){const pw=$('#ph-pw').value,pw2=$('#ph-pw2'),err=$('#ph-err');if(!pw){$('#ph-pw').focus();return}
+    if(pw2&&pw2.value!==pw){err.textContent='The two passwords don’t match.';return}
+    if(pw2&&pw.length<6){err.textContent='Use at least 6 characters.';return}
+    err.textContent=pw2?'Setting up…':'Unlocking…';const ok=await phUnlock(pw);if(!ok){err.textContent='Wrong password.';$('#ph-pw').value='';$('#ph-pw').focus();return}render();return}
+  if(a==='ph-lock'){phLock();render();return}
+  if(a==='ph-cmp'){PH.cmp=PH.cmp?null:[];render();return}
+  if(a==='ph-cmpx'){PH.cmp=null;render();return}
+  if(a==='ph-open'){const id=el.dataset.id;if(PH.cmp){if(!PH.cmp.includes(id))PH.cmp.push(id);if(PH.cmp.length===2){const [x,y]=PH.cmp;PH.cmp=null;render();phCompare(x,y)}else render();return}
+    const p=S.photos.find(x=>x.id===id);if(p)phOpen(p);return}
+}
+const PHOTO_ACTS=['ph-unlock','ph-lock','ph-cmp','ph-cmpx','ph-open'];
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='ph-pw'||e.target.id==='ph-pw2')){e.preventDefault();photoAct('ph-unlock',e.target)}});
+function trTabs(){return `<div class="ftabs">${[['today','Today'],['log','Training log'],['photos','Photos']].map(([k,l])=>`<span class="${trTab===k?'on':''}" data-act="tr-tab" data-t="${k}">${l}</span>`).join('')}</div>`}
 function weekStartKey(dd){const x=new Date(dd);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return dayKey(x)}
 function renderTrainLog(){
   const all=S.workouts.slice().sort((a,b)=>b.day.localeCompare(a.day)||(b.createdAt||0)-(a.createdAt||0));
@@ -2183,6 +2298,7 @@ function renderTrainWeigh(){
   const trained7=new Set(S.workouts.filter(x=>x.day>dayKey(addDays(new Date(),-7))&&x.day<=tk).map(x=>x.day)).size;
   const headTW=`<div class="head"><div class="l"><span class="eyebrow">Fitness · ${label} <span style="color:var(--tx4);text-transform:none;letter-spacing:0">· ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span></span><h1>${fmtDay(d)}</h1></div>
     <div class="row"><div class="seg"><button class="icon-btn" data-act="body-prev">‹</button>${k!==tk?'<button class="btn sm" data-act="body-today">Today</button>':''}<button class="icon-btn" data-act="body-next" ${k>=tk?'disabled style="opacity:.3"':''}>›</button></div></div></div>`;
+  if(trTab==='photos')return `<div class="head"><div class="l"><span class="eyebrow">Fitness · private</span><h1>Progress photos</h1></div>${PH.key?'<button class="btn sm" data-act="ph-lock">Lock</button>':''}</div>`+trTabs()+renderPhotos();
   if(trTab==='log')return `<div class="head"><div class="l"><span class="eyebrow">Fitness · ${BF.handle?'<span data-save="body">'+(BF.state||'Saved')+'</span>':'this browser only'}</span><h1>Training log</h1></div></div>`+renderTrainLog();
   return headTW+trTabs()+`  <div class="tgrid" style="align-items:start">
       <div class="card"><h2><span>Training</span><button class="btn pri sm" data-act="wo-new">+ Log</button></h2>
@@ -2907,6 +3023,7 @@ document.addEventListener('click',async e=>{
   if(BODY_ACTS.includes(a)){e.stopPropagation();bodyAct(a,el);return}
   if(HAB_ACTS.includes(a)){habitAct(a,el);return}
   if(FIT_ACTS.includes(a)){fitAct(a,el);return}
+  if(PHOTO_ACTS.includes(a)){photoAct(a,el);return}
   if(BOOK_ACTS.includes(a)){bookAct(a,el);return}
   if(CUBE_ACTS.includes(a)){cubeAct(a,el);return}
   if(QUOTE_ACTS.includes(a)){quoteAct(a,el);return}
